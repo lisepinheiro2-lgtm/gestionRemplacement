@@ -1,0 +1,7 @@
+bin/
+.settings/
+*.class
+
+employees.csv
+replacements.csv
+workShifts.csv
