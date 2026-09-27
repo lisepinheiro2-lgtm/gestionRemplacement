@@ -5,7 +5,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 
 public class ReplacementList {
 
@@ -13,7 +16,9 @@ public class ReplacementList {
 	private final String fileName = "replacements.csv";
 
 	public ReplacementList() {
+
 		loadReplacements();
+		sortReplacements();
 	}
 
 	private void loadReplacements() {
@@ -29,21 +34,28 @@ public class ReplacementList {
 			String line;
 
 			while ((line = reader.readLine()) != null) {
-				String[] data = line.split(";");
+				String[] data = line.split(";", -1);
 
-				if (data.length == 9) {
+				if (data.length == 10) {
 
 					double contractHoursEmployeeToReplace = Double.parseDouble(data[2]);
 					Employee employeeToReplace = new Employee(data[0], data[1], contractHoursEmployeeToReplace);
-					double contractHoursReplacementEmployee = Double.parseDouble(data[5]);
-					Employee replacementEmployee = new Employee(data[3], data[4], contractHoursReplacementEmployee);
-					String date = data[6];
+					Employee replacementEmployee = null;
+					double contractHoursReplacementEmployee = 0;
+
+					if (!data[3].isBlank() && !data[4].isBlank()) {
+						contractHoursReplacementEmployee = Double.parseDouble(data[5]);
+						replacementEmployee = new Employee(data[3], data[4], contractHoursReplacementEmployee);
+					}
+
+					String startDate = data[6];
 					String startTime = data[7];
-					String endTime = data[8];
+					String endDate = data[8];
+					String endTime = data[9];
 
-					replacements.add(new Replacement(employeeToReplace, contractHoursEmployeeToReplace,
-							replacementEmployee, contractHoursReplacementEmployee, date, startTime, endTime));
-
+					replacements
+							.add(new Replacement(employeeToReplace, contractHoursEmployeeToReplace, replacementEmployee,
+									contractHoursReplacementEmployee, startDate, startTime, endDate, endTime));
 				}
 			}
 
@@ -56,12 +68,13 @@ public class ReplacementList {
 	}
 
 	public void addReplacement(Employee employeeToReplace, double contractHoursEmployeeToReplace,
-			Employee replacementEmployee, double contractHoursReplacementEmployee, String date, String startTime,
-			String endTime) {
+			Employee replacementEmployee, double contractHoursReplacementEmployee, String startDate, String startTime,
+			String endDate, String endTime) {
 
 		replacements.add(new Replacement(employeeToReplace, contractHoursEmployeeToReplace, replacementEmployee,
-				contractHoursReplacementEmployee, date, startTime, endTime));
+				contractHoursReplacementEmployee, startDate, startTime, endDate, endTime));
 
+		sortReplacements();
 		saveReplacements();
 	}
 
@@ -73,13 +86,22 @@ public class ReplacementList {
 
 			for (Replacement replacement : replacements) {
 
+				String replacementFirstName = "";
+				String replacementLastName = "";
+				double replacementContractHours = 0;
+
+				if (replacement.getReplacementEmployee() != null) {
+					replacementFirstName = replacement.getReplacementEmployee().getFirstName();
+					replacementLastName = replacement.getReplacementEmployee().getLastName();
+					replacementContractHours = replacement.getContractHoursReplacementEmployee();
+				}
+
 				writer.write(replacement.getEmployeeToReplace().getFirstName() + ";"
 						+ replacement.getEmployeeToReplace().getLastName() + ";"
-						+ replacement.getContractHoursEmployeeToReplace() + ";"
-						+ replacement.getReplacementEmployee().getFirstName() + ";"
-						+ replacement.getReplacementEmployee().getLastName() + ";"
-						+ replacement.getContractHoursReplacementEmployee() + ";" + replacement.getDate() + ";"
-						+ replacement.getStartTime() + ";" + replacement.getEndTime() + System.lineSeparator());
+						+ replacement.getContractHoursEmployeeToReplace() + ";" + replacementFirstName + ";"
+						+ replacementLastName + ";" + replacementContractHours + ";" + replacement.getStartDate() + ";"
+						+ replacement.getStartTime() + ";" + replacement.getEndDate() + ";" + replacement.getEndTime()
+						+ System.lineSeparator());
 			}
 
 			writer.close();
@@ -91,8 +113,8 @@ public class ReplacementList {
 	}
 
 	public void editReplacements(int index, Employee employeeToReplace, double contractHoursEmployeeToReplace,
-			Employee replacementEmployee, double contractHoursReplacementEmployee, String date, String startTime,
-			String endTime) {
+			Employee replacementEmployee, double contractHoursReplacementEmployee, String startDate, String startTime,
+			String endDate, String endTime) {
 
 		Replacement replacement = replacements.get(index);
 
@@ -100,11 +122,20 @@ public class ReplacementList {
 		replacement.setContractHoursEmployeeToReplace(contractHoursEmployeeToReplace);
 		replacement.setReplacementEmployee(replacementEmployee);
 		replacement.setContractHoursReplacementEmployee(contractHoursReplacementEmployee);
-		replacement.setDate(date);
+		replacement.setStartDate(startDate);
 		replacement.setStartTime(startTime);
+		replacement.setEndDate(endDate);
 		replacement.setEndTime(endTime);
 
+		sortReplacements();
 		saveReplacements();
+	}
+
+	public void sortReplacements() {
+
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+		replacements.sort(Comparator.comparing(replacement -> LocalDate.parse(replacement.getStartDate(), formatter)));
 	}
 
 	public void removeReplacement(int index) {

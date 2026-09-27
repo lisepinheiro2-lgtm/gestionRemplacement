@@ -1,5 +1,5 @@
 package gestionRemplacement;
 
-public class settingsPersonals {
+public class EmployeeSettings {
 
 }

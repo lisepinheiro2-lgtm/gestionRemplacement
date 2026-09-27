@@ -1,11 +1,12 @@
 package gestionRemplacement;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
-import java.io.IOException;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 
 import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -14,12 +15,11 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.JOptionPane;
 
-public class PersonnelUI {
+public class PersonnelUI extends JPanel {
 
 	private PersonnelList personnel;
-	private JFrame frame;
-	private JTextField firstNameField;
 	private JTextField lastNameField;
+	private JTextField firstNameField;
 	private JTextField contractHoursField;
 	private DefaultTableModel tableModel;
 	private JTable employeeTable;
@@ -28,32 +28,12 @@ public class PersonnelUI {
 	public PersonnelUI(PersonnelList personnel) {
 
 		this.personnel = personnel;
-		createWindow();
-		loadTable();
-	}
 
-	private void createWindow() {
+		setLayout(new BorderLayout());
 
-		frame = new JFrame("Personnel Management");
-		frame.setSize(1000, 800);
-		frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		frame.addWindowListener(new java.awt.event.WindowAdapter() {
-
-			public void windowClosing(java.awt.event.WindowEvent e) {
-
-				if (employeeTable.isEditing()) {
-					employeeTable.getCellEditor().stopCellEditing();
-				}
-
-				frame.dispose();
-				System.exit(0);
-			}
-		});
-
-		frame.setLayout(new BorderLayout());
 		createInputPanel();
 		createTable();
-		frame.setVisible(true);
+		loadTable();
 	}
 
 	private void createInputPanel() {
@@ -61,26 +41,28 @@ public class PersonnelUI {
 		JPanel inputPanel = new JPanel();
 		inputPanel.setLayout(new GridLayout(4, 2));
 
-		JLabel firstNameLabel = new JLabel("Prénom :");
 		JLabel lastNameLabel = new JLabel("Nom :");
+		JLabel firstNameLabel = new JLabel("Prénom :");
 		JLabel contractHoursLabel = new JLabel("Heures prévues au contrat :");
 		firstNameField = new JTextField();
 		lastNameField = new JTextField();
 		contractHoursField = new JTextField();
 
+		addPlaceholder(contractHoursField, "Ex : 35 - 24,5 - 24h30");
+
 		JButton addButton = new JButton("Ajouter un employé");
 		JButton delButton = new JButton("Supprimer un employé");
 
-		inputPanel.add(firstNameLabel);
-		inputPanel.add(firstNameField);
 		inputPanel.add(lastNameLabel);
 		inputPanel.add(lastNameField);
+		inputPanel.add(firstNameLabel);
+		inputPanel.add(firstNameField);
 		inputPanel.add(contractHoursLabel);
 		inputPanel.add(contractHoursField);
 		inputPanel.add(delButton);
 		inputPanel.add(addButton);
 
-		frame.add(inputPanel, BorderLayout.NORTH);
+		add(inputPanel, BorderLayout.NORTH);
 
 		addButton.addActionListener(event -> addEmployee());
 		delButton.addActionListener(event -> removeEmployee());
@@ -88,7 +70,7 @@ public class PersonnelUI {
 
 	private void createTable() {
 
-		String[] columns = { "Prénom", "Nom", "Heures prévues au contrat" };
+		String[] columns = { "Nom", "Prénom", "Heures prévues au contrat" };
 		tableModel = new DefaultTableModel(columns, 0);
 		tableModel.addTableModelListener(event -> {
 
@@ -98,76 +80,78 @@ public class PersonnelUI {
 
 			int row = event.getFirstRow();
 			int column = event.getColumn();
+
 			if (row < 0 || column < 0) {
 				return;
 			}
 
-			String firstName = tableModel.getValueAt(row, 0).toString();
-			String lastName = tableModel.getValueAt(row, 1).toString();
+			String lastName = tableModel.getValueAt(row, 0).toString();
+			String firstName = tableModel.getValueAt(row, 1).toString();
 			String contractHoursText = tableModel.getValueAt(row, 2).toString();
 
-			if (firstName.isBlank() || lastName.isBlank() || contractHoursText.isBlank()) {
+			if (lastName.isBlank() || firstName.isBlank() || contractHoursText.isBlank()) {
 
 				Employee employee = personnel.getEmployees().get(row);
+
 				updatingTable = true;
 
-				tableModel.setValueAt(employee.getFirstName(), row, 0);
-				tableModel.setValueAt(employee.getLastName(), row, 1);
+				tableModel.setValueAt(employee.getLastName(), row, 0);
+				tableModel.setValueAt(employee.getFirstName(), row, 1);
 				tableModel.setValueAt(employee.getContractHours(), row, 2);
+
 				updatingTable = false;
 
-				JOptionPane.showMessageDialog(frame,
-						"Veuillez renseigner le prénom, le nom et les heures prévus au contrat");
+				JOptionPane.showMessageDialog(this,
+						"Veuillez renseigner le nom, le prénom et les heures prévus au contrat");
 				return;
 			}
 
 			try {
 
-				double contractHours = Double.parseDouble(contractHoursText);
+				double contractHours = parseContractHours(contractHoursText);
 				personnel.editEmployee(row, firstName, lastName, contractHours);
 
 			} catch (NumberFormatException e) {
 				Employee employee = personnel.getEmployees().get(row);
 
 				updatingTable = true;
-				tableModel.setValueAt(employee.getContractHours(), row, 2);
+				tableModel.setValueAt(formatContractHours(employee.getContractHours()), row, 2);
 				updatingTable = false;
 
-				JOptionPane.showMessageDialog(frame, "Les heures prévues au contrat doivent être un nombre.");
+				JOptionPane.showMessageDialog(this, "Les heures prévues au contrat doivent être un nombre.");
 			}
 		});
 
 		employeeTable = new JTable(tableModel);
 		JScrollPane scrollPane = new JScrollPane(employeeTable);
-		frame.add(scrollPane, BorderLayout.CENTER);
+		add(new JScrollPane(employeeTable), BorderLayout.CENTER);
 	}
 
 	private void addEmployee() {
 
-		String firstName = firstNameField.getText();
 		String lastName = lastNameField.getText();
+		String firstName = firstNameField.getText();
 		String contractHoursText = contractHoursField.getText();
-		if (firstName.isBlank() || lastName.isBlank() || contractHoursText.isBlank()) {
-			JOptionPane.showMessageDialog(frame,
-					"Veuillez remplir les cases prénom, nom et heures prévues au contrat, sinon l'employé ne sera pas sauvegardé.");
+
+		if (lastName.isBlank() || firstName.isBlank() || contractHoursText.isBlank()) {
+			JOptionPane.showMessageDialog(this,
+					"Veuillez remplir les cases nom, prénom et heures prévues au contrat, sinon l'employé ne sera pas sauvegardé.");
 			return;
 		}
 
 		try {
 
-			double contractHours = Double.parseDouble(contractHoursText);
+			double contractHours = parseContractHours(contractHoursText);
 
 			personnel.addEmployee(firstName, lastName, contractHours);
+			refreshTable();
 
-			Object[] employee = { firstName, lastName, contractHours };
-			tableModel.addRow(employee);
-
-			firstNameField.setText("");
 			lastNameField.setText("");
+			firstNameField.setText("");
 			contractHoursField.setText("");
 
 		} catch (NumberFormatException e) {
-			JOptionPane.showMessageDialog(frame, "Les heures prévues au contrat doivent être un nombre.");
+			JOptionPane.showMessageDialog(this, "Les heures prévues au contrat doivent être un nombre.");
 		}
 	}
 
@@ -176,21 +160,87 @@ public class PersonnelUI {
 		int index = employeeTable.getSelectedRow();
 
 		if (index == -1) {
-			JOptionPane.showMessageDialog(frame, "Veuillez sélectionner un employé.");
+			JOptionPane.showMessageDialog(this, "Veuillez sélectionner un employé.");
 			return;
 		}
 
 		personnel.removeEmployee(index);
-		tableModel.removeRow(index);
+		refreshTable();
 	}
 
 	private void loadTable() {
 
 		for (Employee employee : personnel.getEmployees()) {
 
-			Object[] row = { employee.getFirstName(), employee.getLastName(), employee.getContractHours() };
+			Object[] row = { employee.getLastName(), employee.getFirstName(),
+					formatContractHours(employee.getContractHours()) };
 
 			tableModel.addRow(row);
 		}
+	}
+
+	private void addPlaceholder(JTextField field, String placeholder) {
+
+		field.setText(placeholder);
+		field.setForeground(Color.GRAY);
+
+		field.addFocusListener(new FocusAdapter() {
+
+			public void focusGained(FocusEvent e) {
+
+				if (field.getText().equals(placeholder)) {
+					field.setText("");
+					field.setForeground(Color.BLACK);
+				}
+			}
+
+			public void focusLost(FocusEvent e) {
+
+				if (field.getText().isBlank()) {
+					field.setText(placeholder);
+					field.setForeground(Color.GRAY);
+				}
+			}
+		});
+	}
+
+	private double parseContractHours(String text) {
+
+		text = text.trim().toLowerCase().replace(",", ".");
+
+		if (text.contains("h")) {
+
+			String[] parts = text.split("h");
+			int hours = Integer.parseInt(parts[0]);
+			int minutes = Integer.parseInt(parts[1]);
+
+			if (minutes < 0 || minutes > 59) {
+				throw new NumberFormatException();
+			}
+
+			return hours + minutes / 60.0;
+		}
+
+		return Double.parseDouble(text);
+	}
+
+	private String formatContractHours(double hours) {
+
+		int totalMinutes = (int) Math.round(hours * 60);
+
+		int hour = totalMinutes / 60;
+		int minutes = totalMinutes % 60;
+
+		return String.format("%dh%02d", hour, minutes);
+	}
+
+	private void refreshTable() {
+
+		updatingTable = true;
+
+		tableModel.setRowCount(0);
+		loadTable();
+
+		updatingTable = false;
 	}
 }
