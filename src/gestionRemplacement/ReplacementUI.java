@@ -85,19 +85,14 @@ public class ReplacementUI extends JPanel {
 
 		inputPanel.add(new JLabel("Employé à remplacer : "));
 		inputPanel.add(employeeToReplaceBox);
-
 		inputPanel.add(new JLabel("Employé remplaçant : "));
 		inputPanel.add(replacementEmployeeBox);
-
 		inputPanel.add(new JLabel("Date de début : "));
 		inputPanel.add(startDateField);
-
 		inputPanel.add(new JLabel("Heure de début : "));
 		inputPanel.add(startTimeField);
-
 		inputPanel.add(new JLabel("Date de fin : "));
 		inputPanel.add(endDateField);
-
 		inputPanel.add(new JLabel("Heure de fin : "));
 		inputPanel.add(endTimeField);
 
