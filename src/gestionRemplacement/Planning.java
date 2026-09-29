@@ -47,7 +47,6 @@ public class Planning {
 		saveInterventions();
 	}
 
-
 	private Client findClient(String firstName, String lastName) {
 
 		for (Client client : clients.getClients()) {
@@ -312,6 +311,21 @@ public class Planning {
 		saveInterventions();
 
 		return true;
+	}
+
+	public void removeInterventionsByRecurringId(String recurringId) {
+
+		for (int i = interventions.size()-1; i >= 0; i--) {
+
+			Intervention currentIntervention = interventions.get(i);
+			String currentId = currentIntervention.getRecurringId();
+
+			if (recurringId.equals(currentId)) {
+				interventions.remove(i);
+			}
+		}
+		
+		saveInterventions();
 	}
 
 	public void assignEmployee(Intervention intervention, Employee employee) {

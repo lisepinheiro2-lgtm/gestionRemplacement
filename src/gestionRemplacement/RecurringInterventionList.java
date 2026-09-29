@@ -12,7 +12,7 @@ import java.util.ArrayList;
 
 public class RecurringInterventionList {
 
-	private ArrayList<RecurringIntervention> recurringInterventions = new ArrayList<>();
+	public ArrayList<RecurringIntervention> recurringInterventions = new ArrayList<>();
 
 	private final String fileName = "recurringInterventions.csv";
 
@@ -91,7 +91,7 @@ public class RecurringInterventionList {
 		}
 	}
 
-	private void saveRecurringInterventions() {
+	public void saveRecurringInterventions() {
 
 		try {
 
@@ -118,6 +118,22 @@ public class RecurringInterventionList {
 			System.out.println("Erreur pendant la sauvegarde des interventions récurrentes.");
 			e.printStackTrace();
 		}
+	}
+
+	public void removeRecurringInterventionById(String recurringId) {
+
+		for (int i = recurringInterventions.size() - 1; i >= 0; i--) {
+
+			RecurringIntervention currentIntervention = recurringInterventions.get(i);
+			String currentId = currentIntervention.getId();
+
+			if (recurringId.equals(currentId)) {
+				recurringInterventions.remove(i);
+				break;
+			}
+		}
+
+		saveRecurringInterventions();
 	}
 
 	public void addRecurringIntervention(RecurringIntervention recurringIntervention) {

@@ -27,11 +27,13 @@ public class MainUI {
 	private JButton replacements;
 	private JButton homeButton;
 	private JButton clientManagement;
+	private JButton interventions;
 
 	private JPanel homePanel;
 	private JPanel personnelPanel;
 	private JPanel replacementPanel;
 	private JPanel clientPanel;
+	private InterventionUI interventionPanel;
 
 	public MainUI(PersonnelList personnel, ClientList clients, Planning planning, ReplacementList replacementList,
 			RecurringInterventionList recurringInterventionList) {
@@ -62,12 +64,14 @@ public class MainUI {
 		planningPanel = new PlanningUI(planning, personnel, clients, recurringInterventionList);
 		replacementPanel = new ReplacementUI(replacementList, personnel, planning);
 		clientPanel = new ClientUI(clients);
+		interventionPanel = new InterventionUI(planning, recurringInterventionList, clients, personnel);
 
 		mainPanel.add(homePanel, "HOME");
 		mainPanel.add(personnelPanel, "PERSONNEL");
 		mainPanel.add(planningPanel, "PLANNING");
 		mainPanel.add(replacementPanel, "REPLACEMENTS");
 		mainPanel.add(clientPanel, "CLIENTS");
+		mainPanel.add(interventionPanel, "INTERVENTIONS");
 
 		frame.setLayout(new BorderLayout());
 
@@ -85,12 +89,13 @@ public class MainUI {
 	private JPanel createHomePanel() {
 
 		JPanel panel = new JPanel();
-		panel.setLayout(new GridLayout(1, 4));
+		panel.setLayout(new GridLayout(3, 2));
 
 		personnelManagement = new JButton("Management employees");
 		viewPlanning = new JButton("Planning");
 		replacements = new JButton("Remplacements");
 		clientManagement = new JButton("Management clients");
+		interventions = new JButton("Gestion interventions");
 
 		panel.add(personnelManagement);
 		panel.add(viewPlanning);
@@ -101,8 +106,14 @@ public class MainUI {
 		viewPlanning.addActionListener(event -> planningUI());
 		replacements.addActionListener(event -> replacementUI());
 		clientManagement.addActionListener(event -> clientUI());
+		interventions.addActionListener(event -> interventionUI());
 
 		return panel;
+	}
+
+	private void interventionUI() {
+		cardLayout.show(mainPanel, "INTERVENTIONS");
+		homeButton.setVisible(true);
 	}
 
 	private void clientUI() {
