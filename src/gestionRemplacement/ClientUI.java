@@ -1,14 +1,9 @@
 package gestionRemplacement;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.GridLayout;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -69,9 +64,9 @@ public class ClientUI extends JPanel {
 		inputPanel.add(removeButton);
 		inputPanel.add(addButton);
 
-		addPlaceholder(totalHoursField, "Ex : 120 - 120,5 - 120h30");
-		addPlaceholder(startDateField, "jj/MM/aaaa");
-		addPlaceholder(endDateField, "jj/MM/aaaa");
+		UIUtils.addPlaceholder(totalHoursField, "Ex : 120 - 120,5 - 120h30");
+		UIUtils.addPlaceholder(startDateField, "jj/MM/aaaa");
+		UIUtils.addPlaceholder(endDateField, "jj/MM/aaaa");
 
 		addButton.addActionListener(event -> addClient());
 		removeButton.addActionListener(event -> removeClient());
@@ -110,48 +105,6 @@ public class ClientUI extends JPanel {
 		}
 	}
 
-	private void addPlaceholder(JTextField field, String placeholder) {
-
-		field.setText(placeholder);
-		field.setForeground(Color.GRAY);
-
-		field.addFocusListener(new FocusAdapter() {
-
-			public void focusGained(FocusEvent e) {
-
-				if (field.getText().equals(placeholder)) {
-					field.setText("");
-					field.setForeground(Color.BLACK);
-				}
-			}
-
-			public void focusLost(FocusEvent e) {
-
-				if (field.getText().isBlank()) {
-					field.setText(placeholder);
-					field.setForeground(Color.GRAY);
-				}
-			}
-		});
-	}
-
-	private double parseContractHours(String text) {
-
-		text = text.trim().toLowerCase().replace(",", ".");
-
-		if (text.contains("h")) {
-			String[] parts = text.split("h");
-			int hours = Integer.parseInt(parts[0]);
-			int minutes = Integer.parseInt(parts[1]);
-
-			if (minutes < 0 || minutes > 59) {
-				throw new NumberFormatException();
-			}
-			return hours + minutes / 60.0;
-		}
-		return Double.parseDouble(text);
-	}
-
 	private void addClient() {
 
 		String lastName = lastNameField.getText();
@@ -170,15 +123,15 @@ public class ClientUI extends JPanel {
 
 		try {
 
-			double totalHoursContract = parseContractHours(totalHoursText);
+			double totalHoursContract = FormatUtils.parseContractHours(totalHoursText);
 			LocalDate contractStartDate = null;
 			LocalDate contractEndDate = null;
 
 			if (!startDateText.isBlank() && !startDateText.equals("jj/MM/aaaa")) {
-				contractStartDate = parseDate(startDateText);
+				contractStartDate = FormatUtils.parseDate(startDateText);
 			}
 			if (!endDateText.isBlank() && !endDateText.equals("jj/MM/aaaa")) {
-				contractEndDate = parseDate(endDateText);
+				contractEndDate = FormatUtils.parseDate(endDateText);
 			}
 
 			clients.addClient(firstName, lastName, address, totalHoursContract, contractStartDate, contractEndDate);
@@ -215,10 +168,4 @@ public class ClientUI extends JPanel {
 		loadTable();
 	}
 
-	private LocalDate parseDate(String text) {
-
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-
-		return LocalDate.parse(text.trim(), formatter);
-	}
 }

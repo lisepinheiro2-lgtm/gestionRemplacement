@@ -13,10 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
-import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -151,10 +148,10 @@ public class PlanningUI extends JPanel {
 			}
 
 			DayOfWeek dayOfWeek = DayOfWeek.of(dayBox.getSelectedIndex() + 1);
-			LocalTime startTime = parseTime(startTimeField.getText());
-			LocalTime endTime = parseTime(endTimeField.getText());
-			LocalDate startDate = parseDate(startDateField.getText());
-			LocalDate endDate = parseDate(endDateField.getText());
+			LocalTime startTime = FormatUtils.parseTime(startTimeField.getText());
+			LocalTime endTime = FormatUtils.parseTime(endTimeField.getText());
+			LocalDate startDate = FormatUtils.parseDate(startDateField.getText());
+			LocalDate endDate = FormatUtils.parseDate(endDateField.getText());
 
 			if (!endDate.isAfter(startDate) && !endDate.equals(startDate)) {
 				JOptionPane.showMessageDialog(this, "La date de fin doit être postérieure à la date de début.");
@@ -240,10 +237,10 @@ public class PlanningUI extends JPanel {
 
 		try {
 
-			LocalDate startDate = parseDate(startDateText);
-			LocalDate endDate = parseDate(endDateText);
-			LocalTime startTime = parseTime(startTimeText);
-			LocalTime endTime = parseTime(endTimeText);
+			LocalDate startDate = FormatUtils.parseDate(startDateText);
+			LocalDate endDate = FormatUtils.parseDate(endDateText);
+			LocalTime startTime = FormatUtils.parseTime(startTimeText);
+			LocalTime endTime = FormatUtils.parseTime(endTimeText);
 
 			LocalDateTime start = LocalDateTime.of(startDate, startTime);
 			LocalDateTime end = LocalDateTime.of(endDate, endTime);
@@ -530,29 +527,6 @@ public class PlanningUI extends JPanel {
 		}
 
 		JOptionPane.showMessageDialog(this, employeesPanel, "Attribuer l'intervention", JOptionPane.PLAIN_MESSAGE);
-	}
-
-	private LocalDate parseDate(String text) {
-
-		DateTimeFormatter longYear = DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-		DateTimeFormatter shortYear = new DateTimeFormatterBuilder().appendPattern("dd/MM/")
-				.appendValueReduced(ChronoField.YEAR, 2, 2, 2000).toFormatter().withResolverStyle(ResolverStyle.STRICT);
-
-		try {
-
-			return LocalDate.parse(text.trim(), longYear);
-
-		} catch (DateTimeParseException e) {
-			return LocalDate.parse(text.trim(), shortYear);
-		}
-	}
-
-	private LocalTime parseTime(String text) {
-
-		DateTimeFormatter formatter = new DateTimeFormatterBuilder().appendValue(ChronoField.HOUR_OF_DAY)
-				.appendLiteral('h').optionalStart().appendValue(ChronoField.MINUTE_OF_HOUR, 2).optionalEnd()
-				.parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0).toFormatter().withResolverStyle(ResolverStyle.STRICT);
-		return LocalTime.parse(text.trim().toLowerCase(), formatter);
 	}
 
 	public void refreshPlanning() {

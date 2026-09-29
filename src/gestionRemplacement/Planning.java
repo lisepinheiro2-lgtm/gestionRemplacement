@@ -47,18 +47,6 @@ public class Planning {
 		saveInterventions();
 	}
 
-	private Employee findEmployee(String firstName, String lastName) {
-
-		for (Employee employee : personnel.getEmployees()) {
-
-			if (employee.getFirstName().equals(firstName) && employee.getLastName().equals(lastName)) {
-
-				return employee;
-			}
-		}
-
-		return null;
-	}
 
 	private Client findClient(String firstName, String lastName) {
 
@@ -95,7 +83,7 @@ public class Planning {
 					Employee employee = null;
 
 					if (!data[2].isBlank() && !data[3].isBlank()) {
-						employee = findEmployee(data[2], data[3]);
+						employee = personnel.findEmployee(data[2], data[3]);
 					}
 
 					LocalDate startDate = LocalDate.parse(data[4]);

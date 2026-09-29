@@ -110,6 +110,28 @@ public class PersonnelList {
 		}
 	}
 
+	public Employee findEmployee(Employee employeeToFind) {
+
+		if (employeeToFind == null) {
+			return null;
+		}
+
+		return findEmployee(employeeToFind.getFirstName(), employeeToFind.getLastName());
+	}
+
+	public Employee findEmployee(String firstName, String lastName) {
+
+		for (Employee employee : employees) {
+
+			if (employee.getFirstName().equals(firstName) && employee.getLastName().equals(lastName)) {
+
+				return employee;
+			}
+		}
+
+		return null;
+	}
+
 	public boolean isEmpty() {
 
 		return employees.isEmpty();

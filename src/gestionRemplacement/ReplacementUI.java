@@ -6,13 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
-import java.time.temporal.ChronoField;
-import java.awt.Color;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -69,10 +63,10 @@ public class ReplacementUI extends JPanel {
 		endDateField = new JTextField();
 		endTimeField = new JTextField();
 
-		addPlaceholder(startDateField, "jj/MM/aaaa");
-		addPlaceholder(startTimeField, "__ h __");
-		addPlaceholder(endDateField, "jj/MM/aaaa");
-		addPlaceholder(endTimeField, "__ h __");
+		UIUtils.addPlaceholder(startDateField, "jj/MM/aaaa");
+		UIUtils.addPlaceholder(startTimeField, "__ h __");
+		UIUtils.addPlaceholder(endDateField, "jj/MM/aaaa");
+		UIUtils.addPlaceholder(endTimeField, "__ h __");
 
 		JButton addButton = new JButton("Ajouter un remplacement");
 		JButton removeButton = new JButton("Supprimer le remplacement");
@@ -129,9 +123,9 @@ public class ReplacementUI extends JPanel {
 
 		try {
 
-			parsedStartTime = parseTime(startTime);
-			parsedEndTime = parseTime(endTime);
-			parsedStartDate = parseDate(startDate);
+			parsedStartTime = FormatUtils.parseTime(startTime);
+			parsedEndTime = FormatUtils.parseTime(endTime);
+			parsedStartDate = FormatUtils.parseDate(startDate);
 
 			if (endDate.isBlank() || endDate.equals("jj/MM/aaaa")) {
 
@@ -144,7 +138,7 @@ public class ReplacementUI extends JPanel {
 				parsedEndDate = parsedStartDate;
 
 			} else {
-				parsedEndDate = parseDate(endDate);
+				parsedEndDate = FormatUtils.parseDate(endDate);
 			}
 
 		} catch (DateTimeParseException e) {
@@ -217,24 +211,6 @@ public class ReplacementUI extends JPanel {
 		refreshTable();
 	}
 
-	private Employee findEmployee(Employee employeeToFind) {
-
-		if (employeeToFind == null) {
-			return null;
-		}
-
-		for (Employee employee : personnel.getEmployees()) {
-
-			if (employee.getFirstName().equals(employeeToFind.getFirstName())
-					&& employee.getLastName().equals(employeeToFind.getLastName())) {
-
-				return employee;
-			}
-		}
-
-		return null;
-	}
-
 	private void createTable() {
 
 		String[] columns = { "Employé à remplacer", "Heures contrat", "Remplaçant", "Heures contrat", "Date début",
@@ -251,85 +227,28 @@ public class ReplacementUI extends JPanel {
 
 		for (Replacement replacement : replacementList.getReplacements()) {
 
-			Employee employeeToReplace = findEmployee(replacement.getEmployeeToReplace());
-			Employee replacementEmployee = findEmployee(replacement.getReplacementEmployee());
+			Employee employeeToReplace = personnel.findEmployee(replacement.getEmployeeToReplace());
+			Employee replacementEmployee = personnel.findEmployee(replacement.getReplacementEmployee());
 			String replacementText = "Attribution individuelle";
 			String replacementHours = "-";
 
 			if (replacementEmployee != null) {
 				replacementText = replacementEmployee.toString();
-				replacementHours = formatContractHours(replacementEmployee.getContractHours());
+				replacementHours = FormatUtils.formatContractHours(replacementEmployee.getContractHours());
 			}
 
 			Object[] row = { replacement.getEmployeeToReplace(),
-					formatContractHours(employeeToReplace.getContractHours()), replacementText, replacementHours,
-					replacement.getStartDate(), replacement.getStartTime(), replacement.getEndDate(),
+					FormatUtils.formatContractHours(employeeToReplace.getContractHours()), replacementText,
+					replacementHours, replacement.getStartDate(), replacement.getStartTime(), replacement.getEndDate(),
 					replacement.getEndTime() };
 
 			tableModel.addRow(row);
 		}
 	}
 
-	private void addPlaceholder(JTextField field, String placeholder) {
-
-		field.setText(placeholder);
-		field.setForeground(Color.GRAY);
-
-		field.addFocusListener(new FocusAdapter() {
-
-			public void focusGained(FocusEvent e) {
-
-				if (field.getText().equals(placeholder)) {
-					field.setText("");
-					field.setForeground(Color.BLACK);
-				}
-			}
-
-			public void focusLost(FocusEvent e) {
-
-				if (field.getText().isBlank()) {
-					field.setText(placeholder);
-					field.setForeground(Color.GRAY);
-				}
-			}
-		});
-	}
-
 	private void refreshTable() {
 
 		tableModel.setRowCount(0);
 		loadTable();
-	}
-
-	private LocalTime parseTime(String text) {
-
-		DateTimeFormatter formatter = new DateTimeFormatterBuilder().appendPattern("H'h'").optionalStart()
-				.appendPattern("mm").optionalEnd().parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0).toFormatter()
-				.withResolverStyle(ResolverStyle.STRICT);
-
-		return LocalTime.parse(text.trim().toLowerCase(), formatter);
-	}
-
-	private LocalDate parseDate(String text) {
-
-		DateTimeFormatter shortYear = DateTimeFormatter.ofPattern("dd/MM/uu").withResolverStyle(ResolverStyle.STRICT);
-		DateTimeFormatter longYear = DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-
-		try {
-
-			return LocalDate.parse(text, shortYear);
-
-		} catch (DateTimeParseException e) {
-			return LocalDate.parse(text, longYear);
-		}
-	}
-
-	private String formatContractHours(double hours) {
-
-		int totalMinutes = (int) Math.round(hours * 60);
-		int hour = totalMinutes / 60;
-		int minutes = totalMinutes % 60;
-
-		return String.format("%dh%02d", hour, minutes);
 	}
 }

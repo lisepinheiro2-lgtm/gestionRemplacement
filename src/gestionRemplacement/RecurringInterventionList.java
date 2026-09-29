@@ -39,18 +39,6 @@ public class RecurringInterventionList {
 		return null;
 	}
 
-	private Employee findEmployee(String firstName, String lastName) {
-
-		for (Employee employee : personnel.getEmployees()) {
-
-			if (employee.getFirstName().equals(firstName) && employee.getLastName().equals(lastName)) {
-				return employee;
-			}
-		}
-
-		return null;
-	}
-
 	private void loadRecurringInterventions() {
 
 		File file = new File(fileName);
@@ -76,7 +64,7 @@ public class RecurringInterventionList {
 					Employee employee = null;
 
 					if (!data[3].isBlank() && !data[4].isBlank()) {
-						employee = findEmployee(data[3], data[4]);
+						employee = personnel.findEmployee(data[3], data[4]);
 					}
 
 					DayOfWeek dayOfWeek = DayOfWeek.valueOf(data[5]);
@@ -138,8 +126,8 @@ public class RecurringInterventionList {
 	}
 
 	public void removeRecurringIntervention(int index) {
-	    recurringInterventions.remove(index);
-	    saveRecurringInterventions();
+		recurringInterventions.remove(index);
+		saveRecurringInterventions();
 	}
 
 	public ArrayList<RecurringIntervention> getRecurringInterventions() {
