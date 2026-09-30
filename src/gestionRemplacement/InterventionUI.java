@@ -3,17 +3,22 @@ package gestionRemplacement;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.awt.ScrollPane;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Comparator;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
@@ -23,7 +28,6 @@ public class InterventionUI extends JPanel {
 	private RecurringInterventionList recurringInterventionList;
 	private ClientList clients;
 	private PersonnelList personnel;
-	private DefaultTableModel interventionTableModel;
 	private JPanel interventionPanel;
 	private LocalDate currentDate;
 	private JButton previousButton;
@@ -35,6 +39,13 @@ public class InterventionUI extends JPanel {
 	private JButton removeRecurringInterventionButton;
 	private JComboBox<String> viewBox;
 	private int currentPage = 0;
+	private ArrayList<Intervention> displayedInterventions;
+	private JLabel interventionsList;
+	private Intervention selectedIntervention;
+	private RecurringIntervention selectedRecurringIntervention;
+	private DefaultTableModel interventionTableModel;
+	private JTable interventionTable;
+	private JScrollPane interventionScrollPane;
 
 	public InterventionUI(Planning planning, RecurringInterventionList recurringInterventionList, ClientList clients,
 			PersonnelList personnel) {
@@ -49,6 +60,10 @@ public class InterventionUI extends JPanel {
 		createNavigationPanel();
 		interventionPanel = new JPanel();
 		add(interventionPanel, BorderLayout.CENTER);
+		interventionPanel = new JPanel();
+		add(interventionPanel, BorderLayout.CENTER);
+
+		createInterventionTable();
 	}
 
 	private void createNavigationPanel() {
@@ -94,9 +109,154 @@ public class InterventionUI extends JPanel {
 
 	}
 
+	private void createInterventionTable() {
+
+		String[] columns = { "Client", "Jour(s)", "Horaires", "Intervenant", "Type" };
+
+		interventionTableModel = new DefaultTableModel(columns, 0);
+		interventionTable = new JTable(interventionTableModel);
+
+		interventionScrollPane = new JScrollPane(interventionTable);
+
+		interventionPanel.setLayout(new BorderLayout());
+		interventionPanel.add(interventionScrollPane, BorderLayout.CENTER);
+	}
+
+	private void search() {
+
+		displayedInterventions = new ArrayList<>();
+		String searchText = searchButton.getText().trim().toLowerCase();
+		currentPage = 0;
+
+		try {
+
+			LocalDate searchedDate = FormatUtils.parseDate(searchText);
+
+			for (Intervention intervention : planning.getInterventions()) {
+
+				if (!searchedDate.isBefore(intervention.getStartDate())
+						&& !searchedDate.isAfter(intervention.getEndDate())) {
+
+					displayedInterventions.add(intervention);
+				}
+			}
+
+			displayedInterventions.sort(Comparator
+					.comparing((Intervention intervention) -> intervention.getStartDate().isBefore(searchedDate)
+							? LocalTime.MIDNIGHT
+							: intervention.getStartTime()));
+
+			if (displayedInterventions.isEmpty()) {
+				JOptionPane.showMessageDialog(this, "Aucune correspondance.");
+				refreshIntervention();
+				return;
+			}
+
+			refreshIntervention();
+			return;
+
+		} catch (DateTimeParseException e) {
+		}
+
+		try {
+			LocalTime searchedTime = FormatUtils.parseTime(searchText);
+
+			for (Intervention intervention : planning.getInterventions()) {
+
+				if (intervention.getStartTime().equals(searchedTime)) {
+					displayedInterventions.add(intervention);
+				}
+			}
+
+			displayedInterventions.sort(Comparator.comparing(Intervention::getStartDate));
+
+			if (displayedInterventions.isEmpty()) {
+				JOptionPane.showMessageDialog(this, "Aucune correspondance.");
+			}
+
+			refreshIntervention();
+			return;
+
+		} catch (DateTimeParseException e) {
+		}
+
+		String searchedName = searchText.toLowerCase();
+
+		for (Intervention intervention : planning.getInterventions()) {
+
+			boolean clientMatches = false;
+			boolean employeeMatches = false;
+
+			if (intervention.getClient() != null) {
+
+				String clientFirstName = intervention.getClient().getFirstName().toLowerCase();
+				String clientLastName = intervention.getClient().getLastName().toLowerCase();
+
+				String clientFullName = clientFirstName + " " + clientLastName;
+				String clientFullNameReverse = clientLastName + " " + clientFirstName;
+
+				clientMatches = clientFirstName.contains(searchedName) || clientLastName.contains(searchedName)
+						|| clientFullName.contains(searchedName) || clientFullNameReverse.contains(searchedName);
+
+			}
+
+			if (intervention.getEmployee() != null) {
+
+				String employeeFirstName = intervention.getEmployee().getFirstName().toLowerCase();
+				String employeeLastName = intervention.getEmployee().getLastName().toLowerCase();
+
+				String employeeFullName = employeeFirstName + " " + employeeLastName;
+				String employeeFullNameReverse = employeeLastName + " " + employeeFirstName;
+
+				employeeMatches = employeeFirstName.contains(searchedName) || employeeLastName.contains(searchedName)
+						|| employeeFullName.contains(searchedName) || employeeFullNameReverse.contains(searchedName);
+			}
+
+			if (clientMatches || employeeMatches) {
+				displayedInterventions.add(intervention);
+			}
+		}
+
+		if (displayedInterventions.isEmpty()) {
+			JOptionPane.showMessageDialog(this, "Aucune correspondance.");
+			refreshIntervention();
+			return;
+		}
+
+		refreshIntervention();
+		return;
+	}
+
+	private void removeIntervention(Intervention intervention) {
+
+	}
+
 	private void view() {
 
+		currentPage = 0;
+
+		displayedInterventions = new ArrayList<>(planning.getInterventions());
+
 		if (viewBox.getSelectedItem().equals("Trier par...")) {
+			return;
+		}
+		if (viewBox.getSelectedItem().equals("Dates")) {
+			displayedInterventions
+					.sort(Comparator.comparing(Intervention::getStartDate).thenComparing(Intervention::getStartTime));
+			refreshIntervention();
+			return;
+		}
+		if (viewBox.getSelectedItem().equals("Clients")) {
+			displayedInterventions
+					.sort(Comparator.comparing((Intervention intervention) -> intervention.getClient().getLastName())
+							.thenComparing(intervention -> intervention.getClient().getFirstName()));
+			refreshIntervention();
+			return;
+		}
+		if (viewBox.getSelectedItem().equals("Intervenants")) {
+			displayedInterventions.sort(Comparator.comparing(Intervention::getEmployee, Comparator
+					.nullsLast(Comparator.comparing(Employee::getLastName).thenComparing(Employee::getFirstName))));
+			refreshIntervention();
 			return;
 		}
 	}
@@ -314,18 +474,41 @@ public class InterventionUI extends JPanel {
 
 	public void refreshIntervention() {
 
-		interventionPanel.removeAll();
+		interventionTableModel.setRowCount(0);
 
-		if (viewBox.getSelectedItem().equals("Dates")) {
+		for (Intervention intervention : displayedInterventions) {
+
+			String clientFirstName = intervention.getClient().getFirstName().toLowerCase();
+			String clientLastName = intervention.getClient().getLastName().toLowerCase();
+			String clientFullName = clientLastName + " " + clientFirstName;
+
+			String employeeFullName = "Non attribué";
+
+			if (intervention.getEmployee() != null) {
+
+				String employeeFirstName = intervention.getEmployee().getFirstName().toLowerCase();
+				String employeeLastName = intervention.getEmployee().getLastName().toLowerCase();
+				employeeFullName = employeeLastName + " " + employeeFirstName;
+			}
+
+			DayOfWeek day = intervention.getStartDate().getDayOfWeek();
+
+			String dayOfIntervention = day + " " + intervention.getStartDate();
+			LocalTime startHour = intervention.getStartTime();
+			LocalTime endHour = intervention.getEndTime();
+			String hours = startHour + " / " + endHour;
+			String type = intervention.getRecurringId();
+			
+			if (type == null || type.isBlank()) {
+				type = "Unique";
+			} else {
+				type = "Récurrent";
+			}
+			
+			interventionTableModel
+					.addRow(new Object[] { clientFullName, dayOfIntervention, hours, employeeFullName, type });
 
 		}
-		if (viewBox.getSelectedItem().equals("Clients")) {
-
-		}
-		if (viewBox.getSelectedItem().equals("Intervenants")) {
-
-		}
-
 		interventionPanel.revalidate();
 		interventionPanel.repaint();
 	}
