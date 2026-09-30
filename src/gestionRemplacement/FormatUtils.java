@@ -1,5 +1,6 @@
 package gestionRemplacement;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -24,6 +25,40 @@ public class FormatUtils {
 
 			return LocalDate.parse(text.trim(), shortYear);
 		}
+	}
+
+	public static String formatDay(DayOfWeek day) {
+
+		switch (day) {
+		case MONDAY:
+			return "Lundi";
+		case TUESDAY:
+			return "Mardi";
+		case WEDNESDAY:
+			return "Mercredi";
+		case THURSDAY:
+			return "Jeudi";
+		case FRIDAY:
+			return "Vendredi";
+		case SATURDAY:
+			return "Samedi";
+		case SUNDAY:
+			return "Dimanche";
+		}
+
+		return "";
+	}
+
+	public static String formatTime(LocalTime time) {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH'h'mm");
+		return time.format(formatter);
+	}
+
+	public static String formatDate(LocalDate date) {
+
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/uuuu");
+
+		return date.format(formatter);
 	}
 
 	public static LocalTime parseTime(String text) {
@@ -66,4 +101,5 @@ public class FormatUtils {
 
 		return String.format("%dh%02d", hour, minutes);
 	}
+
 }

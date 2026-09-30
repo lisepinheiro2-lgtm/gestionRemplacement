@@ -101,6 +101,7 @@ public class MainUI {
 		panel.add(viewPlanning);
 		panel.add(replacements);
 		panel.add(clientManagement);
+		panel.add(interventions);
 
 		personnelManagement.addActionListener(event -> personnelUI());
 		viewPlanning.addActionListener(event -> planningUI());

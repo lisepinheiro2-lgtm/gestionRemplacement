@@ -3,7 +3,6 @@ package gestionRemplacement;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
-import java.awt.ScrollPane;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,6 +19,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
 public class InterventionUI extends JPanel {
@@ -40,9 +40,6 @@ public class InterventionUI extends JPanel {
 	private JComboBox<String> viewBox;
 	private int currentPage = 0;
 	private ArrayList<Intervention> displayedInterventions;
-	private JLabel interventionsList;
-	private Intervention selectedIntervention;
-	private RecurringIntervention selectedRecurringIntervention;
 	private DefaultTableModel interventionTableModel;
 	private JTable interventionTable;
 	private JScrollPane interventionScrollPane;
@@ -55,15 +52,17 @@ public class InterventionUI extends JPanel {
 		this.clients = clients;
 		this.personnel = personnel;
 
+		displayedInterventions = new ArrayList<>(planning.getInterventions());
+
 		currentDate = LocalDate.now();
 		setLayout(new BorderLayout());
 		createNavigationPanel();
 		interventionPanel = new JPanel();
 		add(interventionPanel, BorderLayout.CENTER);
-		interventionPanel = new JPanel();
-		add(interventionPanel, BorderLayout.CENTER);
 
 		createInterventionTable();
+
+		SwingUtilities.invokeLater(() -> refreshIntervention());
 	}
 
 	private void createNavigationPanel() {
@@ -80,12 +79,6 @@ public class InterventionUI extends JPanel {
 
 		String[] views = { "Trier par...", "Dates", "Clients", "Intervenants" };
 		viewBox = new JComboBox<>(views);
-
-		JLabel clientLabel = new JLabel("Client");
-		JLabel dayLabel = new JLabel("Jour(s)");
-		JLabel hourLabel = new JLabel("Horaire(s)");
-		JLabel intervenantLabel = new JLabel("Intervenant");
-		JLabel typeLabel = new JLabel("Type");
 
 		navigationPanel.add(previousButton);
 		navigationPanel.add(searchButton);
@@ -227,8 +220,39 @@ public class InterventionUI extends JPanel {
 		return;
 	}
 
-	private void removeIntervention(Intervention intervention) {
+	private void removeIntervention() {
 
+		int selectedRow = interventionTable.getSelectedRow();
+
+		if (selectedRow == -1) {
+			JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention");
+			return;
+		}
+
+		int currentFirstIndex = currentPage * getInterventionsPerPage();
+		int index = currentFirstIndex + selectedRow;
+		Intervention interventionToRemove = displayedInterventions.get(index);
+		int planningIndex = planning.getInterventions().indexOf(interventionToRemove);
+
+		if (planningIndex == -1) {
+			return;
+		}
+
+		planning.removeIntervention(planningIndex);
+		displayedInterventions.remove(index);
+
+		int interventionsPerPage = getInterventionsPerPage();
+		int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
+
+		if (displayedInterventions.isEmpty()) {
+			currentPage = 0;
+		}
+
+		if (currentPage > endPage) {
+			currentPage = endPage;
+		}
+
+		refreshIntervention();
 	}
 
 	private void view() {
@@ -437,20 +461,76 @@ public class InterventionUI extends JPanel {
 		}
 	}
 
-	public void removeRecurringInterventionById(String recurringId) {
+	public void removeRecurringInterventionById() {
+
+		int selectedRow = interventionTable.getSelectedRow();
+
+		if (selectedRow == -1) {
+			JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention récurrente");
+			return;
+		}
+
+		int currentFirstIndex = currentPage * getInterventionsPerPage();
+		int index = currentFirstIndex + selectedRow;
+		Intervention interventionToRemove = displayedInterventions.get(index);
+		String displayRecurringIdToRemove = interventionToRemove.getRecurringId();
+
+		if (displayRecurringIdToRemove == null || displayRecurringIdToRemove.isBlank()) {
+			JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention récurrente.");
+			return;
+		}
+
+		planning.removeInterventionsByRecurringId(displayRecurringIdToRemove);
+
+		for (int i = displayedInterventions.size() - 1; i >= 0; i--) {
+			String currentId = displayedInterventions.get(i).getRecurringId();
+
+			if (displayRecurringIdToRemove.equals(currentId)) {
+				displayedInterventions.remove(i);
+			}
+		}
+
+		int interventionsPerPage = getInterventionsPerPage();
+		int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
+
+		if (displayedInterventions.isEmpty()) {
+			currentPage = 0;
+		}
+
+		if (currentPage > endPage) {
+			currentPage = endPage;
+		}
 
 		for (int i = recurringInterventionList.recurringInterventions.size() - 1; i >= 0; i--) {
 
 			RecurringIntervention currentIntervention = recurringInterventionList.recurringInterventions.get(i);
 			String currentId = currentIntervention.getId();
 
-			if (recurringId.equals(currentId)) {
+			if (displayRecurringIdToRemove.equals(currentId)) {
 				recurringInterventionList.recurringInterventions.remove(i);
 				break;
 			}
 		}
 
 		recurringInterventionList.saveRecurringInterventions();
+		refreshIntervention();
+	}
+
+	private int getInterventionsPerPage() {
+
+		int size = interventionScrollPane.getViewport().getExtentSize().height;
+		int rowSize = interventionTable.getRowHeight();
+		int interventionsVisiblePerPage = 0;
+
+		if (rowSize > 0) {
+			interventionsVisiblePerPage = size / rowSize;
+		}
+
+		if (interventionsVisiblePerPage > 0) {
+			return interventionsVisiblePerPage;
+		} else {
+			return 1;
+		}
 	}
 
 	private void previousPage() {
@@ -464,7 +544,9 @@ public class InterventionUI extends JPanel {
 
 	private void nextPage() {
 
-		int endPage = (planning.getInterventions().size() - 1) / 10;
+		int interventionsPerPage = getInterventionsPerPage();
+		int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
+
 		if (currentPage < endPage) {
 			currentPage++;
 		}
@@ -476,7 +558,15 @@ public class InterventionUI extends JPanel {
 
 		interventionTableModel.setRowCount(0);
 
-		for (Intervention intervention : displayedInterventions) {
+		int interventionsPerPage = getInterventionsPerPage();
+		int startIndex = currentPage * interventionsPerPage;
+		int endIndex = startIndex + interventionsPerPage;
+
+		endIndex = Math.min(endIndex, displayedInterventions.size());
+
+		for (int i = startIndex; i < endIndex; i++) {
+
+			Intervention intervention = displayedInterventions.get(i);
 
 			String clientFirstName = intervention.getClient().getFirstName().toLowerCase();
 			String clientLastName = intervention.getClient().getLastName().toLowerCase();
@@ -492,23 +582,25 @@ public class InterventionUI extends JPanel {
 			}
 
 			DayOfWeek day = intervention.getStartDate().getDayOfWeek();
-
-			String dayOfIntervention = day + " " + intervention.getStartDate();
 			LocalTime startHour = intervention.getStartTime();
 			LocalTime endHour = intervention.getEndTime();
-			String hours = startHour + " / " + endHour;
+
+			String dayOfIntervention = FormatUtils.formatDay(day) + " "
+					+ FormatUtils.formatDate(intervention.getStartDate());
+			String hours = FormatUtils.formatTime(startHour) + " / " + FormatUtils.formatTime(endHour);
 			String type = intervention.getRecurringId();
-			
+
 			if (type == null || type.isBlank()) {
 				type = "Unique";
+
 			} else {
 				type = "Récurrent";
 			}
-			
+
 			interventionTableModel
 					.addRow(new Object[] { clientFullName, dayOfIntervention, hours, employeeFullName, type });
-
 		}
+
 		interventionPanel.revalidate();
 		interventionPanel.repaint();
 	}
