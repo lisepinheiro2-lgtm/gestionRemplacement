@@ -203,6 +203,36 @@ public class Planning {
 		return totalHours;
 	}
 
+	public boolean hasOverlap(Client client, Intervention interventionToCheck) {
+
+		LocalDateTime startIntervention;
+		LocalDateTime endIntervention;
+		LocalDateTime startToCheck = LocalDateTime.of(interventionToCheck.getStartDate(),
+				interventionToCheck.getStartTime());
+		LocalDateTime endToCheck = LocalDateTime.of(interventionToCheck.getEndDate(), interventionToCheck.getEndTime());
+
+		for (Intervention intervention : interventions) {
+
+			if (intervention == interventionToCheck) {
+				continue;
+			}
+
+			Client interventionClient = intervention.getClient();
+
+			if (interventionClient == null || !interventionClient.equals(client)) {
+				continue;
+			}
+
+			startIntervention = LocalDateTime.of(intervention.getStartDate(), intervention.getStartTime());
+			endIntervention = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
+
+			if (startToCheck.isBefore(endIntervention) && endToCheck.isAfter(startIntervention)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public boolean hasOverlap(Employee employee, Intervention interventionToCheck) {
 
 		LocalDateTime startIntervention;
@@ -315,7 +345,7 @@ public class Planning {
 
 	public void removeInterventionsByRecurringId(String recurringId) {
 
-		for (int i = interventions.size()-1; i >= 0; i--) {
+		for (int i = interventions.size() - 1; i >= 0; i--) {
 
 			Intervention currentIntervention = interventions.get(i);
 			String currentId = currentIntervention.getRecurringId();
@@ -324,7 +354,7 @@ public class Planning {
 				interventions.remove(i);
 			}
 		}
-		
+
 		saveInterventions();
 	}
 
@@ -340,6 +370,11 @@ public class Planning {
 
 	public void removeIntervention(int index) {
 		interventions.remove(index);
+		saveInterventions();
+	}
+
+	public void removeIntervention(Intervention intervention) {
+		interventions.remove(intervention);
 		saveInterventions();
 	}
 

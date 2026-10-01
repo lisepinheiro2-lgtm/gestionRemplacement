@@ -3,11 +3,14 @@ package gestionRemplacement;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
+import java.awt.Rectangle;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
 public class MainUI {
 
@@ -50,16 +53,12 @@ public class MainUI {
 	private void createWindow() {
 
 		frame = new JFrame("Gestion des remplacements");
-		frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
-		frame.setMinimumSize(new Dimension(1000, 700));
-		frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+		configureFrameSize();
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 		cardLayout = new CardLayout();
 		mainPanel = new JPanel(cardLayout);
-
 		homePanel = createHomePanel();
-
 		personnelPanel = new PersonnelUI(personnel);
 		planningPanel = new PlanningUI(planning, personnel, clients, recurringInterventionList);
 		replacementPanel = new ReplacementUI(replacementList, personnel, planning);
@@ -76,13 +75,19 @@ public class MainUI {
 		frame.setLayout(new BorderLayout());
 
 		homeButton = new JButton("Accueil");
+		homeButton.setPreferredSize(new Dimension(120, 40));
 		homeButton.addActionListener(event -> homeUI());
 
 		homeButton.setVisible(false);
 
-		frame.add(homeButton, BorderLayout.NORTH);
-		frame.add(mainPanel, BorderLayout.CENTER);
+		JPanel navigationPanel = new JPanel(new BorderLayout());
 
+		navigationPanel.add(homeButton, BorderLayout.CENTER);
+		navigationPanel.add(UIUtils.createSettingsButton(frame), BorderLayout.EAST);
+		frame.add(navigationPanel, BorderLayout.NORTH);
+		frame.add(mainPanel, BorderLayout.CENTER);
+		
+		UIUtils.applyTheme(frame);
 		frame.setVisible(true);
 	}
 
@@ -112,9 +117,22 @@ public class MainUI {
 		return panel;
 	}
 
+	private void configureFrameSize() {
+
+		Rectangle screenBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+
+		int minWidth = (int) (screenBounds.width * 0.52);
+		int minHeight = (int) (screenBounds.height * 0.4);
+
+		frame.setMinimumSize(new Dimension(minWidth, minHeight));
+		frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+	}
+
 	private void interventionUI() {
 		cardLayout.show(mainPanel, "INTERVENTIONS");
 		homeButton.setVisible(true);
+
+		SwingUtilities.invokeLater(() -> interventionPanel.refreshIntervention());
 	}
 
 	private void clientUI() {

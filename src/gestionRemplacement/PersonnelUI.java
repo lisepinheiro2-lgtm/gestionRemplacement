@@ -121,7 +121,7 @@ public class PersonnelUI extends JPanel {
 
 		employeeTable = new JTable(tableModel);
 		JScrollPane scrollPane = new JScrollPane(employeeTable);
-		add(new JScrollPane(employeeTable), BorderLayout.CENTER);
+		add(scrollPane, BorderLayout.CENTER);
 	}
 
 	private void addEmployee() {
