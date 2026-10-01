@@ -485,7 +485,7 @@ public class PlanningUI extends JPanel {
 		JScrollPane scrollPane = new JScrollPane(bodyPanel);
 		scrollPane.setColumnHeaderView(weekHeaderPanel);
 		scrollPane.getVerticalScrollBar().setUnitIncrement(25);
-		
+
 		planningPanel.add(scrollPane, BorderLayout.CENTER);
 		UIUtils.applyTheme(planningPanel);
 	}
@@ -604,23 +604,40 @@ public class PlanningUI extends JPanel {
 
 		JPanel employeesPanel = new JPanel();
 		employeesPanel.setLayout(new BoxLayout(employeesPanel, BoxLayout.Y_AXIS));
+		LocalDate monday = intervention.getStartDate().with(DayOfWeek.MONDAY);
+		LocalDateTime weekStart = monday.atStartOfDay();
+		LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
 
 		for (Employee employee : personnel.getEmployees()) {
 
 			double currentHours = planning.getWeeklyHours(employee, intervention.getStartDate());
+			double currentMonthlyHours = planning.getMonthyHours(employee, intervention.getStartDate());
+			double estimatedMonthlyHours = (employee.getContractHours() * 52.0) / 12;
+			double remainingMonthlyHours = estimatedMonthlyHours - currentMonthlyHours;
+
 			double projectedHours = currentHours;
+			double remainingWeeklyHours = employee.getContractHours() - currentHours;
 
 			if (intervention.getEmployee() != employee) {
-				projectedHours += intervention.getDurationHours();
+				projectedHours += planning.getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
 			}
 
-			String text = employee + " - " + String.format("%.2f", projectedHours) + "h / "
-					+ String.format("%.2f", employee.getContractHours()) + "h";
+			String text = "<html><div style='text-align: center;'>" + employee + "<br>Semaine : "
+					+ String.format("%.2f", remainingWeeklyHours) + "h restantes / "
+					+ String.format("%.2f", employee.getContractHours()) + " h prévues" + "<br>Mois : "
+					+ String.format("%.2f", remainingMonthlyHours) + " h restantes / "
+					+ String.format("%.2f", estimatedMonthlyHours) + " h estimées" + "</div></html>";
+
+			double overtimeHours = planning.getProjectedWeeklyOverrun(employee, intervention);
 
 			JButton employeeButton = new JButton(text);
+			employeeButton.setPreferredSize(new Dimension(550, 70));
+			employeeButton.setMaximumSize(new Dimension(550, 70));
 
 			if (planning.hasOverlap(employee, intervention)) {
 				employeeButton.setEnabled(false);
+			} else if (overtimeHours > 0) {
+				employeeButton.setBackground(Color.RED);
 
 			} else if (projectedHours < employee.getContractHours()) {
 				employeeButton.setBackground(Color.GREEN);
@@ -631,7 +648,20 @@ public class PlanningUI extends JPanel {
 			} else {
 				employeeButton.setBackground(Color.RED);
 			}
+
 			employeeButton.addActionListener(event -> {
+
+				if (overtimeHours > 0) {
+					int confirmation = JOptionPane.showConfirmDialog(this,
+							"Cette attribution causerait dépassement des heures prévues sur les semaines concernées. "
+									+ String.format("%.2f", overtimeHours) + " h.\nVoulez-vous continuer ?",
+							"dépassement des heures prévues sur les semaines concernées", JOptionPane.YES_NO_OPTION,
+							JOptionPane.WARNING_MESSAGE);
+
+					if (confirmation != JOptionPane.YES_OPTION) {
+						return;
+					}
+				}
 
 				planning.assignEmployee(intervention, employee);
 
@@ -659,7 +689,7 @@ public class PlanningUI extends JPanel {
 		} else {
 			displayMonth();
 		}
-		
+
 		UIUtils.applyTheme(planningPanel);
 		planningPanel.revalidate();
 		planningPanel.repaint();

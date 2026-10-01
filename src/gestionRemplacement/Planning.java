@@ -5,7 +5,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.security.cert.LDAPCertStoreParameters;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -185,22 +187,74 @@ public class Planning {
 	public double getWeeklyHours(Employee employee, LocalDate date) {
 
 		LocalDate monday = date.with(DayOfWeek.MONDAY);
-		LocalDate sunday = monday.plusDays(6);
+		LocalDateTime weekStart = monday.atStartOfDay();
+		LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
 		double totalHours = 0;
 
 		for (Intervention intervention : interventions) {
 
 			Employee assignedEmployee = intervention.getEmployee();
+			LocalDateTime interventionStart = LocalDateTime.of(intervention.getStartDate(),
+					intervention.getStartTime());
+			LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
 
 			if (assignedEmployee != null && assignedEmployee.getFirstName().equals(employee.getFirstName())
 					&& assignedEmployee.getLastName().equals(employee.getLastName())
-					&& !intervention.getStartDate().isAfter(sunday) && !intervention.getEndDate().isBefore(monday)) {
+					&& interventionEnd.isAfter(weekStart) && interventionStart.isBefore(weekEnd)) {
 
-				totalHours += intervention.getDurationHours();
+				totalHours += getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
 			}
 		}
 
 		return totalHours;
+	}
+
+	public double getMonthyHours(Employee employee, LocalDate date) {
+
+		LocalDateTime monthStart = date.withDayOfMonth(1).atStartOfDay();
+		LocalDateTime monthEnd = date.withDayOfMonth(1).plusMonths(1).atStartOfDay();
+		double totalHours = 0;
+
+		for (Intervention intervention : interventions) {
+
+			Employee assignedEmployee = intervention.getEmployee();
+			LocalDateTime interventionStart = LocalDateTime.of(intervention.getStartDate(),
+					intervention.getStartTime());
+			LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
+
+			if (assignedEmployee != null && assignedEmployee.getFirstName().equals(employee.getFirstName())
+					&& assignedEmployee.getLastName().equals(employee.getLastName())
+					&& interventionEnd.isAfter(monthStart) && interventionStart.isBefore(monthEnd)) {
+
+				totalHours += getInterventionHoursInPeriod(intervention, monthStart, monthEnd);
+			}
+		}
+
+		return totalHours;
+	}
+
+	public double getProjectedWeeklyOverrun(Employee employee, Intervention intervention) {
+
+		LocalDate weekMonday = intervention.getStartDate().with(DayOfWeek.MONDAY);
+		LocalDateTime interventionEnd= LocalDateTime.of(intervention.getEndDate(),intervention.getEndTime() );
+		double totalOverrun = 0.0;
+		
+		while(weekMonday.atStartOfDay().isBefore(interventionEnd)) {
+			
+			LocalDateTime weekStart = weekMonday.atStartOfDay();
+			LocalDateTime weekEnd = weekMonday.plusWeeks(1).atStartOfDay();
+			double currentHours = getWeeklyHours(employee, weekMonday);
+			double projectedHours = currentHours;
+			
+			if (intervention.getEmployee() != employee) {
+				projectedHours += getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
+			}
+
+			totalOverrun += Math.max(0, projectedHours - employee.getContractHours());
+			weekMonday = weekMonday.plusWeeks(1);
+		}
+		
+		return totalOverrun;
 	}
 
 	public boolean hasOverlap(Client client, Intervention interventionToCheck) {
@@ -356,6 +410,30 @@ public class Planning {
 		}
 
 		saveInterventions();
+	}
+
+	public double getInterventionHoursInPeriod(Intervention intervention, LocalDateTime periodStart,
+			LocalDateTime periodEnd) {
+
+		LocalDateTime interventionStart = LocalDateTime.of(intervention.getStartDate(), intervention.getStartTime());
+		LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
+
+		if (!interventionEnd.isAfter(periodStart) || !interventionStart.isBefore(periodEnd)) {
+			return 0;
+		}
+
+		LocalDateTime countedStart = interventionStart;
+		LocalDateTime countedEnd = interventionEnd;
+
+		if (countedStart.isBefore(periodStart)) {
+			countedStart = periodStart;
+		}
+
+		if (countedEnd.isAfter(periodEnd)) {
+			countedEnd = periodEnd;
+		}
+
+		return Duration.between(countedStart, countedEnd).toMinutes() / 60.0;
 	}
 
 	public void assignEmployee(Intervention intervention, Employee employee) {
