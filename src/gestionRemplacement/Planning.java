@@ -236,16 +236,16 @@ public class Planning {
 	public double getProjectedWeeklyOverrun(Employee employee, Intervention intervention) {
 
 		LocalDate weekMonday = intervention.getStartDate().with(DayOfWeek.MONDAY);
-		LocalDateTime interventionEnd= LocalDateTime.of(intervention.getEndDate(),intervention.getEndTime() );
+		LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
 		double totalOverrun = 0.0;
-		
-		while(weekMonday.atStartOfDay().isBefore(interventionEnd)) {
-			
+
+		while (weekMonday.atStartOfDay().isBefore(interventionEnd)) {
+
 			LocalDateTime weekStart = weekMonday.atStartOfDay();
 			LocalDateTime weekEnd = weekMonday.plusWeeks(1).atStartOfDay();
 			double currentHours = getWeeklyHours(employee, weekMonday);
 			double projectedHours = currentHours;
-			
+
 			if (intervention.getEmployee() != employee) {
 				projectedHours += getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
 			}
@@ -253,11 +253,11 @@ public class Planning {
 			totalOverrun += Math.max(0, projectedHours - employee.getContractHours());
 			weekMonday = weekMonday.plusWeeks(1);
 		}
-		
+
 		return totalOverrun;
 	}
 
-	public boolean hasOverlap(Client client, Intervention interventionToCheck) {
+	public boolean hasOverlap(Client client, Intervention interventionToCheck, Intervention interventionToIgnore) {
 
 		LocalDateTime startIntervention;
 		LocalDateTime endIntervention;
@@ -267,7 +267,7 @@ public class Planning {
 
 		for (Intervention intervention : interventions) {
 
-			if (intervention == interventionToCheck) {
+			if (intervention == interventionToCheck || intervention == interventionToIgnore) {
 				continue;
 			}
 
@@ -287,7 +287,15 @@ public class Planning {
 		return false;
 	}
 
+	public boolean hasOverlap(Client client, Intervention interventionToCheck) {
+		return hasOverlap(client, interventionToCheck, null);
+	}
+
 	public boolean hasOverlap(Employee employee, Intervention interventionToCheck) {
+		return hasOverlap(employee, interventionToCheck, null);
+	}
+
+	public boolean hasOverlap(Employee employee, Intervention interventionToCheck, Intervention interventionToIgnore) {
 
 		LocalDateTime startIntervention;
 		LocalDateTime endIntervention;
@@ -297,7 +305,7 @@ public class Planning {
 
 		for (Intervention intervention : interventions) {
 
-			if (intervention == interventionToCheck) {
+			if (intervention == interventionToCheck || intervention == interventionToIgnore) {
 				continue;
 			}
 

@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.Window;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -117,7 +118,7 @@ public class UIUtils {
 		settingsButton.setPreferredSize(new Dimension(60, 40));
 		settingsButton.setToolTipText("Paramètres");
 		settingsButton.addActionListener(event -> {
-			
+
 			JCheckBox darkModeBox = new JCheckBox("Mode sombre", darkMode);
 
 			int result = JOptionPane.showConfirmDialog(parent, darkModeBox, "Paramètres", JOptionPane.OK_CANCEL_OPTION,
@@ -206,5 +207,17 @@ public class UIUtils {
 				applyTheme(child);
 			}
 		}
+	}
+
+	public static void drawPastStripes(Graphics g, int width, int height) {
+
+		Graphics stripesGraphics = g.create();
+		stripesGraphics.setColor(new Color(128, 128, 128, 150));
+
+		for (int x = -height; x < width; x += 14) {
+			stripesGraphics.drawLine(x, 0, x + height, height);
+		}
+
+		stripesGraphics.dispose();
 	}
 }

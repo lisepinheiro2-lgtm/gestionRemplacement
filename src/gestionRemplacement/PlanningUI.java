@@ -14,12 +14,15 @@ import java.awt.GridLayout;
 import java.awt.Window;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Locale;
@@ -49,7 +52,6 @@ public class PlanningUI extends JPanel {
 	private JButton previousButton;
 	private JButton todayButton;
 	private JButton nextButton;
-	private JButton addInterventionButton;
 
 	private JComboBox<String> viewBox;
 
@@ -78,8 +80,7 @@ public class PlanningUI extends JPanel {
 		previousButton = new JButton("<");
 		todayButton = new JButton("Aujourd'hui");
 		nextButton = new JButton(">");
-		addInterventionButton = new JButton("Ajouter une intervention");
-		JButton addRecurringButton = new JButton("Ajouter une intervention récurrente");
+
 		String[] views = { "Mois", "Semaine" };
 		viewBox = new JComboBox<>(views);
 
@@ -87,8 +88,6 @@ public class PlanningUI extends JPanel {
 		periodPanel.add(todayButton);
 		periodPanel.add(nextButton);
 		viewPanel.add(viewBox);
-		actionPanel.add(addInterventionButton);
-		actionPanel.add(addRecurringButton);
 
 		navigationPanel.add(periodPanel, BorderLayout.WEST);
 		navigationPanel.add(viewPanel, BorderLayout.CENTER);
@@ -99,11 +98,177 @@ public class PlanningUI extends JPanel {
 		todayButton.addActionListener(event -> today());
 		nextButton.addActionListener(event -> nextPeriod());
 		viewBox.addActionListener(event -> refreshPlanning());
-		addInterventionButton.addActionListener(event -> openAddIntervention());
-		addRecurringButton.addActionListener(event -> openAddRecurringIntervention());
 	}
 
-	private void openAddRecurringIntervention() {
+	private void openInterventionActions(Intervention intervention) {
+
+		String[] options = { "Attribuer / Réattribuer", "Modifier", "Supprimer" };
+		int choice = JOptionPane.showOptionDialog(this, "Que voulez-vous faire ?", "Choix de l'action",
+				JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+
+		switch (choice) {
+		case 0:
+			openEmployeeSelection(intervention);
+			break;
+
+		case 1:
+			openEditIntervention(intervention);
+			break;
+
+		case 2:
+			int confirmation = JOptionPane.showConfirmDialog(this, "Supprimer cette intervention ?",
+					"Confirmer la suppression", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (confirmation == JOptionPane.YES_OPTION) {
+				planning.removeIntervention(intervention);
+				refreshPlanning();
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	private void openEditIntervention(Intervention intervention) {
+
+		JPanel formPanel = new JPanel(new GridLayout(6, 2));
+		JComboBox<Client> clientBox = new JComboBox<>();
+
+		for (Client client : clients.getClients()) {
+			clientBox.addItem(client);
+		}
+
+		JComboBox<Object> employeeBox = new JComboBox<>();
+		employeeBox.addItem("Non attribué");
+
+		for (Employee employee : personnel.getEmployees()) {
+			employeeBox.addItem(employee);
+		}
+
+		JTextField startDateField = new JTextField();
+		JTextField startTimeField = new JTextField();
+		JTextField endDateField = new JTextField();
+		JTextField endTimeField = new JTextField();
+		startDateField.setText(FormatUtils.formatDate(intervention.getStartDate()));
+		endDateField.setText(FormatUtils.formatDate(intervention.getEndDate()));
+		startTimeField.setText(FormatUtils.formatTime(intervention.getStartTime()));
+		endTimeField.setText(FormatUtils.formatTime(intervention.getEndTime()));
+		clientBox.setSelectedItem(intervention.getClient());
+
+		if (intervention.getEmployee() != null) {
+			employeeBox.setSelectedItem(intervention.getEmployee());
+		}
+
+		formPanel.add(new JLabel("Client :"));
+		formPanel.add(clientBox);
+		formPanel.add(new JLabel("Intervenant :"));
+		formPanel.add(employeeBox);
+		formPanel.add(new JLabel("Heure de début :"));
+		formPanel.add(startTimeField);
+		formPanel.add(new JLabel("Heure de fin :"));
+		formPanel.add(endTimeField);
+		formPanel.add(new JLabel("Date de début :"));
+		formPanel.add(startDateField);
+		formPanel.add(new JLabel("Date de fin :"));
+		formPanel.add(endDateField);
+
+		LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
+
+		if (!interventionEnd.isAfter(LocalDateTime.now())) {
+			int confirmation = JOptionPane.showConfirmDialog(this,
+
+					"Cette intervention a déjà eu lieu, êtes-vous sûr de vouloir la modifier ?",
+					"Modifier une intervention passée", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+			if (confirmation != JOptionPane.YES_OPTION) {
+				return;
+			}
+		}
+
+		int result = JOptionPane.showConfirmDialog(this, formPanel, "Modifier une intervention",
+				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+		if (result != JOptionPane.OK_OPTION) {
+			return;
+		}
+
+		Client selectedClient = (Client) clientBox.getSelectedItem();
+		Employee selectedEmployee = null;
+		Object selectedItem = employeeBox.getSelectedItem();
+
+		if (selectedItem instanceof Employee) {
+			selectedEmployee = (Employee) selectedItem;
+		}
+
+		String startDateText = startDateField.getText();
+		String startTimeText = startTimeField.getText();
+		String endDateText = endDateField.getText();
+		String endTimeText = endTimeField.getText();
+
+		try {
+
+			LocalDate startDate = FormatUtils.parseDate(startDateText);
+			LocalDate endDate = FormatUtils.parseDate(endDateText);
+			LocalTime startTime = FormatUtils.parseTime(startTimeText);
+			LocalTime endTime = FormatUtils.parseTime(endTimeText);
+
+			LocalDateTime start = LocalDateTime.of(startDate, startTime);
+			LocalDateTime end = LocalDateTime.of(endDate, endTime);
+
+			if (!end.isAfter(start)) {
+				JOptionPane.showMessageDialog(this, "La fin de l'intervention doit être postérieure au début.");
+				return;
+			}
+
+			Intervention modifiedIntervention = new Intervention(selectedClient, selectedEmployee, startDate, startTime,
+					endDate, endTime);
+
+			if (selectedEmployee != null && planning.hasOverlap(selectedEmployee, modifiedIntervention, intervention)) {
+				JOptionPane.showMessageDialog(this,
+						"Cet intervenant possède déjà une intervention sur cette plage horaire.");
+				return;
+			}
+
+			if (planning.hasOverlap(selectedClient, modifiedIntervention, intervention)) {
+
+				int confirmation = JOptionPane.showConfirmDialog(this,
+						"Une autre intervention est déjà prévue pour ce client et chevauche ce créneau.\n"
+								+ "Voulez-vous vraiment modifier cette intervention ?",
+						"Chevauchement d'interventions", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+				if (confirmation != JOptionPane.YES_OPTION) {
+					return;
+				}
+			}
+
+			int index = planning.getInterventions().indexOf(intervention);
+
+			planning.editIntervention(index, selectedClient, selectedEmployee, startDate, startTime, endDate, endTime);
+			refreshPlanning();
+
+		} catch (DateTimeParseException e) {
+			JOptionPane.showMessageDialog(this,
+					"Format invalide. Date : 05/03/27 ou 05/03/2027. " + "Heure : 7h, 07h, 7h30 ou 18h30.");
+		}
+	}
+
+	private void openAddInterventionChoice(LocalDate initialDate, LocalTime initialTime) {
+
+		String[] options = { "Intervention unique", "Intervention récurrente" };
+		int choice = JOptionPane.showOptionDialog(this, "Quel type d’intervention voulez-vous ajouter ?",
+				"Ajouter une intervention", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options,
+				options[0]);
+
+		if (choice == 0) {
+			openAddIntervention(initialDate, initialTime);
+		} else if (choice == 1) {
+			openAddRecurringIntervention(initialDate, initialTime);
+		} else {
+			return;
+		}
+	}
+
+	private void openAddRecurringIntervention(LocalDate initialDate, LocalTime initialTime) {
 
 		JPanel formPanel = new JPanel(new GridLayout(7, 2));
 		JComboBox<Client> clientBox = new JComboBox<>();
@@ -125,6 +290,13 @@ public class PlanningUI extends JPanel {
 		JTextField endTimeField = new JTextField();
 		JTextField startDateField = new JTextField();
 		JTextField endDateField = new JTextField();
+		startDateField.setText(FormatUtils.formatDate(initialDate));
+		endDateField.setText(FormatUtils.formatDate(initialDate));
+		dayBox.setSelectedIndex(initialDate.getDayOfWeek().getValue() - 1);
+
+		if (initialTime != null) {
+			startTimeField.setText(FormatUtils.formatTime(initialTime));
+		}
 
 		formPanel.add(new JLabel("Client :"));
 		formPanel.add(clientBox);
@@ -173,6 +345,29 @@ public class PlanningUI extends JPanel {
 				JOptionPane.showMessageDialog(this, "L'heure de fin doit être postérieure à l'heure de début.");
 				return;
 			}
+
+			LocalDate firstOccurrenceDate = startDate.with(TemporalAdjusters.nextOrSame(dayOfWeek));
+
+			if (firstOccurrenceDate.isAfter(endDate)) {
+				JOptionPane.showMessageDialog(this,
+						"La période choisie ne contient aucune occurrence du jour sélectionné.");
+				return;
+			}
+
+			LocalDateTime firstOccurrenceStart = LocalDateTime.of(firstOccurrenceDate, startTime);
+
+			if (firstOccurrenceStart.isBefore(LocalDateTime.now())) {
+				int confirmation = JOptionPane.showConfirmDialog(this,
+						"Cette récurrence créera une ou plusieurs interventions dont le début est déjà passé.\n"
+								+ "Voulez-vous quand même la créer ?",
+						"Créer une intervention récurrent ayant débuté dans le passé", JOptionPane.YES_NO_OPTION,
+						JOptionPane.WARNING_MESSAGE);
+
+				if (confirmation != JOptionPane.YES_OPTION) {
+					return;
+				}
+			}
+
 			RecurringIntervention recurring = new RecurringIntervention(selectedClient, selectedEmployee, dayOfWeek,
 					startTime, endTime, startDate, endDate);
 			boolean generated = planning.generateRecurringInterventions(recurring);
@@ -192,7 +387,7 @@ public class PlanningUI extends JPanel {
 		}
 	}
 
-	private void openAddIntervention() {
+	private void openAddIntervention(LocalDate initialDate, LocalTime initialTime) {
 
 		JPanel formPanel = new JPanel(new GridLayout(6, 2));
 		JComboBox<Client> clientBox = new JComboBox<>();
@@ -212,6 +407,12 @@ public class PlanningUI extends JPanel {
 		JTextField startTimeField = new JTextField();
 		JTextField endDateField = new JTextField();
 		JTextField endTimeField = new JTextField();
+		startDateField.setText(FormatUtils.formatDate(initialDate));
+		endDateField.setText(FormatUtils.formatDate(initialDate));
+
+		if (initialTime != null) {
+			startTimeField.setText(FormatUtils.formatTime(initialTime));
+		}
 
 		formPanel.add(new JLabel("Client :"));
 		formPanel.add(clientBox);
@@ -259,6 +460,16 @@ public class PlanningUI extends JPanel {
 			if (!end.isAfter(start)) {
 				JOptionPane.showMessageDialog(this, "La fin de l'intervention doit être postérieure au début.");
 				return;
+			}
+
+			if (start.isBefore(LocalDateTime.now())) {
+				int confirmation = JOptionPane.showConfirmDialog(this,
+						"Le début de cette intervention est déjà passé.\n" + "Voulez-vous quand même la créer ?",
+						"Créer une intervention dans le passé", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+				if (confirmation != JOptionPane.YES_OPTION) {
+					return;
+				}
 			}
 
 			Intervention intervention = new Intervention(selectedClient, selectedEmployee, startDate, startTime,
@@ -355,6 +566,16 @@ public class PlanningUI extends JPanel {
 			JLabel dayLabel = new JLabel(currentDay.format(formatter), JLabel.CENTER);
 			dayLabel.setPreferredSize(new Dimension(120, 25));
 
+			dayLabel.addMouseListener(new MouseAdapter() {
+
+				@Override
+				public void mouseClicked(MouseEvent event) {
+					if (SwingUtilities.isLeftMouseButton(event)) {
+						openAddInterventionChoice(currentDay, null);
+					}
+				}
+			});
+
 			JPanel dayPanel = new JPanel() {
 
 				@Override
@@ -367,6 +588,21 @@ public class PlanningUI extends JPanel {
 						int y = hour * 60;
 						g.drawLine(0, y, getWidth(), y);
 					}
+
+					LocalDateTime now = LocalDateTime.now();
+
+					if (currentDay.isBefore(now.toLocalDate())) {
+						UIUtils.drawPastStripes(g, getWidth(), getHeight());
+
+					} else if (currentDay.equals(now.toLocalDate())) {
+						int elapsedMinutes = now.getHour() * 60 + now.getMinute();
+
+						Graphics pastGraphics = g.create();
+						pastGraphics.clipRect(0, 0, getWidth(), elapsedMinutes);
+
+						UIUtils.drawPastStripes(pastGraphics, getWidth(), getHeight());
+						pastGraphics.dispose();
+					}
 				}
 			};
 
@@ -375,6 +611,20 @@ public class PlanningUI extends JPanel {
 			dayPanel.setLayout(null);
 			dayPanel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 			dayPanel.setPreferredSize(new Dimension(120, 24 * 60));
+
+			dayPanel.addMouseListener(new MouseAdapter() {
+
+				@Override
+				public void mouseClicked(MouseEvent event) {
+
+					if (SwingUtilities.isLeftMouseButton(event)) {
+						int clickedHour = Math.max(0, Math.min(23, event.getY() / 60));
+						LocalTime clickedTime = LocalTime.of(clickedHour, 0);
+
+						openAddInterventionChoice(currentDay, clickedTime);
+					}
+				}
+			});
 
 			dayPanel.addComponentListener(new ComponentAdapter() {
 
@@ -449,13 +699,27 @@ public class PlanningUI extends JPanel {
 				String endText = String.format("%02dh%02d", (endMinutes / 60) % 24, endMinutes % 60);
 				String text = "<html><div style='text-align: center;'>" + intervention.getClient() + "<br>" + startText
 						+ " → " + endText + "<br>" + employeeText + "</div></html>";
-				JButton interventionButton = new JButton(text);
+
+				JButton interventionButton = new JButton(text) {
+					@Override
+					protected void paintComponent(Graphics g) {
+						super.paintComponent(g);
+
+						LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(),
+								intervention.getEndTime());
+
+						if (!interventionEnd.isAfter(LocalDateTime.now())) {
+							UIUtils.drawPastStripes(g, getWidth(), getHeight());
+						}
+					}
+				};
+
 				interventionButton.setHorizontalAlignment(JLabel.CENTER);
 				interventionButton.setVerticalAlignment(JLabel.CENTER);
 				interventionButton.putClientProperty("columnIndex", columnIndex);
 				UIUtils.styleInterventionButton(interventionButton, intervention.getEmployee() != null);
 
-				interventionButton.addActionListener(event -> openEmployeeSelection(intervention));
+				interventionButton.addActionListener(event -> openInterventionActions(intervention));
 				interventionButton.setBounds(2, y, 116, height);
 
 				dayPanel.add(interventionButton);
@@ -502,22 +766,22 @@ public class PlanningUI extends JPanel {
 		LocalDate calendarStart = firstDay.minusDays(firstDayPosition - 1);
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE dd/MM", Locale.FRENCH);
 
-		for (int i = 0; i < firstDayPosition - 1; i++) {
+		for (int i = 0; i < numberOfWeeks * 7; i++) {
 
 			LocalDate day = calendarStart.plusDays(i);
-			JPanel emptyDay = new JPanel(new BorderLayout());
-			JLabel dayLabel = new JLabel(day.format(formatter), JLabel.CENTER);
-			emptyDay.add(dayLabel, BorderLayout.NORTH);
-			emptyDay.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-
-			monthPanel.add(emptyDay);
-		}
-
-		for (int i = 1; i <= numberOfDays; i++) {
-
-			LocalDate day = firstDay.plusDays(i - 1);
 			String dayText = day.format(formatter);
-			JPanel dayPanel = new JPanel(new BorderLayout());
+			JPanel dayPanel = new JPanel(new BorderLayout()) {
+
+				@Override
+				protected void paintComponent(Graphics g) {
+					super.paintComponent(g);
+
+					if (day.isBefore(LocalDate.now())) {
+						UIUtils.drawPastStripes(g, getWidth(), getHeight());
+					}
+				}
+			};
+
 			dayPanel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 
 			JLabel dayLabel = new JLabel(dayText, JLabel.CENTER);
@@ -529,9 +793,24 @@ public class PlanningUI extends JPanel {
 					.sort(Comparator.comparing(Intervention::getStartDate).thenComparing(Intervention::getStartTime));
 
 			JPanel interventionsPanel = new JPanel();
+			interventionsPanel.setOpaque(false);
 			interventionsPanel.setLayout(new BoxLayout(interventionsPanel, BoxLayout.Y_AXIS));
 
+			MouseAdapter addInterventionListener = new MouseAdapter() {
+
+				@Override
+				public void mouseClicked(MouseEvent event) {
+
+					if (SwingUtilities.isLeftMouseButton(event)) {
+						openAddInterventionChoice(day, null);
+					}
+				}
+			};
+
 			dayPanel.add(interventionsPanel, BorderLayout.CENTER);
+			dayPanel.addMouseListener(addInterventionListener);
+			dayLabel.addMouseListener(addInterventionListener);
+			interventionsPanel.addMouseListener(addInterventionListener);
 
 			for (Intervention intervention : dayInterventions) {
 
@@ -564,32 +843,32 @@ public class PlanningUI extends JPanel {
 				String text = "<html><div style='text-align: center;'>" + intervention.getClient() + "<br>" + startText
 						+ " → " + endText + "<br>" + employeeText + "</div></html>";
 
-				JButton interventionButton = new JButton(text);
+				JButton interventionButton = new JButton(text) {
+
+					@Override
+					protected void paintComponent(Graphics g) {
+						super.paintComponent(g);
+
+						LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(),
+								intervention.getEndTime());
+
+						if (!interventionEnd.isAfter(LocalDateTime.now())) {
+							UIUtils.drawPastStripes(g, getWidth(), getHeight());
+						}
+					}
+				};
+
 				interventionButton.setHorizontalAlignment(JLabel.CENTER);
 				interventionButton.setVerticalAlignment(JLabel.CENTER);
 				interventionButton.setFont(new Font("Arial", Font.PLAIN, 16));
 				interventionButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 75));
-				interventionButton.addActionListener(event -> openEmployeeSelection(intervention));
+				interventionButton.addActionListener(event -> openInterventionActions(intervention));
 				UIUtils.styleInterventionButton(interventionButton, intervention.getEmployee() != null);
 
 				interventionsPanel.add(interventionButton);
 			}
 
 			monthPanel.add(dayPanel);
-		}
-
-		int usedCells = (firstDayPosition - 1) + numberOfDays;
-		int remainingCells = numberOfWeeks * 7 - usedCells;
-		LocalDate firstDayNextMonth = firstDay.plusMonths(1);
-
-		for (int i = 0; i < remainingCells; i++) {
-			LocalDate day = firstDayNextMonth.plusDays(i);
-			JPanel nextMonthDay = new JPanel(new BorderLayout());
-			JLabel dayLabel = new JLabel(day.format(formatter), JLabel.CENTER);
-
-			nextMonthDay.add(dayLabel, BorderLayout.NORTH);
-			nextMonthDay.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-			monthPanel.add(nextMonthDay);
 		}
 
 		planningPanel.setLayout(new BorderLayout());
@@ -601,6 +880,19 @@ public class PlanningUI extends JPanel {
 	}
 
 	private void openEmployeeSelection(Intervention intervention) {
+
+		LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
+
+		if (!interventionEnd.isAfter(LocalDateTime.now())) {
+			int confirmation = JOptionPane.showConfirmDialog(this,
+
+					"Cette intervention a déjà eu lieu, êtes-vous sûr de vouloir modifier son attribution ?",
+					"Modifier une attribution passée", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+			if (confirmation != JOptionPane.YES_OPTION) {
+				return;
+			}
+		}
 
 		JPanel employeesPanel = new JPanel();
 		employeesPanel.setLayout(new BoxLayout(employeesPanel, BoxLayout.Y_AXIS));
