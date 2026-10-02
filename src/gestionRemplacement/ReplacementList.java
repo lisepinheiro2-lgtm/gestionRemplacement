@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 
 public class ReplacementList {
 
@@ -36,16 +37,20 @@ public class ReplacementList {
 			while ((line = reader.readLine()) != null) {
 				String[] data = line.split(";", -1);
 
-				if (data.length == 10) {
+				if (data.length == 10 || data.length == 11) {
 
 					double contractHoursEmployeeToReplace = Double.parseDouble(data[2]);
-					Employee employeeToReplace = new Employee(data[0], data[1], contractHoursEmployeeToReplace);
+					Employee employeeToReplace = new Employee(data[0], data[1], contractHoursEmployeeToReplace, "satut",
+							0.0, 0.0);
+
 					Employee replacementEmployee = null;
 					double contractHoursReplacementEmployee = 0;
 
 					if (!data[3].isBlank() && !data[4].isBlank()) {
+
 						contractHoursReplacementEmployee = Double.parseDouble(data[5]);
-						replacementEmployee = new Employee(data[3], data[4], contractHoursReplacementEmployee);
+						replacementEmployee = new Employee(data[3], data[4], contractHoursReplacementEmployee, "satut",
+								0.0, 0.0);
 					}
 
 					String startDate = data[6];
@@ -53,9 +58,15 @@ public class ReplacementList {
 					String endDate = data[8];
 					String endTime = data[9];
 
-					replacements
-							.add(new Replacement(employeeToReplace, contractHoursEmployeeToReplace, replacementEmployee,
-									contractHoursReplacementEmployee, startDate, startTime, endDate, endTime));
+					Replacement replacement = new Replacement(employeeToReplace, contractHoursEmployeeToReplace,
+							replacementEmployee, contractHoursReplacementEmployee, startDate, startTime, endDate,
+							endTime);
+
+					if (data.length == 11 && !data[10].isBlank()) {
+						replacement.setAbsenceId(data[10]);
+					}
+
+					replacements.add(replacement);
 				}
 			}
 
@@ -101,6 +112,7 @@ public class ReplacementList {
 						+ replacement.getContractHoursEmployeeToReplace() + ";" + replacementFirstName + ";"
 						+ replacementLastName + ";" + replacementContractHours + ";" + replacement.getStartDate() + ";"
 						+ replacement.getStartTime() + ";" + replacement.getEndDate() + ";" + replacement.getEndTime()
+						+ ";" + (replacement.getAbsenceId() == null ? "" : replacement.getAbsenceId())
 						+ System.lineSeparator());
 			}
 
@@ -126,6 +138,50 @@ public class ReplacementList {
 		replacement.setStartTime(startTime);
 		replacement.setEndDate(endDate);
 		replacement.setEndTime(endTime);
+
+		sortReplacements();
+		saveReplacements();
+	}
+
+	public void synchronizeAbsences(ArrayList<EmployeeAbsence> absences) {
+
+		HashSet<String> absenceIds = new HashSet<>();
+
+		for (EmployeeAbsence absence : absences) {
+			absenceIds.add(absence.getId());
+		}
+
+		replacements.removeIf(
+				replacement -> replacement.getAbsenceId() != null && !absenceIds.contains(replacement.getAbsenceId()));
+
+		for (EmployeeAbsence absence : absences) {
+			Replacement linkedReplacement = null;
+
+			for (Replacement replacement : replacements) {
+				if (absence.getId().equals(replacement.getAbsenceId())) {
+					linkedReplacement = replacement;
+					break;
+				}
+			}
+
+			String startDate = FormatUtils.formatDate(absence.getStartDate());
+			String endDate = FormatUtils.formatDate(absence.getEndDate().plusDays(1));
+
+			if (linkedReplacement == null) {
+				Employee employee = absence.getEmployee();
+
+				linkedReplacement = new Replacement(employee, employee.getContractHours(), null, 0, startDate, "00h00",
+						endDate, "00h00");
+
+				linkedReplacement.setAbsenceId(absence.getId());
+				replacements.add(linkedReplacement);
+			} else {
+				linkedReplacement.setStartDate(startDate);
+				linkedReplacement.setStartTime("00h00");
+				linkedReplacement.setEndDate(endDate);
+				linkedReplacement.setEndTime("00h00");
+			}
+		}
 
 		sortReplacements();
 		saveReplacements();

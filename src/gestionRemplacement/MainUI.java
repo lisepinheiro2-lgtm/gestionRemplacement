@@ -6,6 +6,11 @@ import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
 import java.awt.Rectangle;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.prefs.Preferences;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -33,19 +38,23 @@ public class MainUI {
 	private JButton interventions;
 
 	private JPanel homePanel;
-	private JPanel personnelPanel;
-	private JPanel replacementPanel;
+	private PersonnelUI personnelPanel;
+	private ReplacementUI replacementPanel;
 	private JPanel clientPanel;
 	private InterventionUI interventionPanel;
+	private final Preferences preferences = Preferences.userNodeForPackage(MainUI.class);
+	private Dimension normalWindowSize;
+	private EmployeeAbsenceList absenceList;
 
 	public MainUI(PersonnelList personnel, ClientList clients, Planning planning, ReplacementList replacementList,
-			RecurringInterventionList recurringInterventionList) {
+			RecurringInterventionList recurringInterventionList, EmployeeAbsenceList absenceList) {
 
 		this.personnel = personnel;
 		this.clients = clients;
 		this.planning = planning;
 		this.replacementList = replacementList;
 		this.recurringInterventionList = recurringInterventionList;
+		this.absenceList = absenceList;
 
 		createWindow();
 	}
@@ -59,7 +68,7 @@ public class MainUI {
 		cardLayout = new CardLayout();
 		mainPanel = new JPanel(cardLayout);
 		homePanel = createHomePanel();
-		personnelPanel = new PersonnelUI(personnel);
+		personnelPanel = new PersonnelUI(personnel, planning, absenceList);
 		planningPanel = new PlanningUI(planning, personnel, clients, recurringInterventionList);
 		replacementPanel = new ReplacementUI(replacementList, personnel, planning);
 		clientPanel = new ClientUI(clients);
@@ -86,8 +95,28 @@ public class MainUI {
 		navigationPanel.add(UIUtils.createSettingsButton(frame), BorderLayout.EAST);
 		frame.add(navigationPanel, BorderLayout.NORTH);
 		frame.add(mainPanel, BorderLayout.CENTER);
-		
+
 		UIUtils.applyTheme(frame);
+
+		frame.addComponentListener(new ComponentAdapter() {
+			@Override
+			public void componentResized(ComponentEvent event) {
+				if (frame.isShowing() && frame.getExtendedState() == JFrame.NORMAL) {
+					normalWindowSize = frame.getSize();
+				}
+			}
+		});
+
+		frame.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent event) {
+				preferences.putInt("windowWidth", normalWindowSize.width);
+				preferences.putInt("windowHeight", normalWindowSize.height);
+				boolean maximized = (frame.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
+				preferences.putBoolean("windowMaximized", maximized);
+			}
+		});
+
 		frame.setVisible(true);
 	}
 
@@ -121,11 +150,16 @@ public class MainUI {
 
 		Rectangle screenBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
 
-		int minWidth = (int) (screenBounds.width * 0.52);
-		int minHeight = (int) (screenBounds.height * 0.4);
+		int width = preferences.getInt("windowWidth", (int) (screenBounds.width * 0.8));
+		int height = preferences.getInt("windowHeight", (int) (screenBounds.height * 0.8));
+		frame.setSize(width, height);
+		normalWindowSize = frame.getSize();
 
-		frame.setMinimumSize(new Dimension(minWidth, minHeight));
-		frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+		boolean maximized = preferences.getBoolean("windowMaximized", true);
+
+		if (maximized) {
+			frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+		}
 	}
 
 	private void interventionUI() {
@@ -147,6 +181,7 @@ public class MainUI {
 
 	private void personnelUI() {
 		cardLayout.show(mainPanel, "PERSONNEL");
+		personnelPanel.refreshTable();
 		homeButton.setVisible(true);
 	}
 
@@ -157,6 +192,7 @@ public class MainUI {
 	}
 
 	private void replacementUI() {
+		replacementPanel.refreshTable();
 		cardLayout.show(mainPanel, "REPLACEMENTS");
 		homeButton.setVisible(true);
 	}

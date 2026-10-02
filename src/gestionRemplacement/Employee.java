@@ -5,12 +5,21 @@ public class Employee {
 	private String firstName;
 	private String lastName;
 	private double contractHours;
+	private String statut;
+	private double attribuateHours;
+	private double nonAttribuateHours;
 
-	public Employee(String firstName, String lastName, double contractHours) {
+	public Employee(String firstName, String lastName, double contractHours, String statut, double attribuateHours,
+			double nonAttribuateHours) {
+		
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.contractHours = contractHours;
+		this.statut = statut;
+		this.attribuateHours = attribuateHours;
+		this.nonAttribuateHours = nonAttribuateHours;
 	}
+	
 
 	public String toString() {
 		return firstName + " " + lastName;
@@ -38,6 +47,30 @@ public class Employee {
 
 	public void setContractHours(double contractHours) {
 		this.contractHours = contractHours;
+	}
+
+	public double getNonAttribuateHours() {
+		return nonAttribuateHours;
+	}
+
+	public void setNonAttribuateHours(double nonAttribuateHours) {
+		this.nonAttribuateHours = nonAttribuateHours;
+	}
+
+	public double getAttribuateHours() {
+		return attribuateHours;
+	}
+
+	public void setAttribuateHours(double attribuateHours) {
+		this.attribuateHours = attribuateHours;
+	}
+
+	public String getStatut() {
+		return statut;
+	}
+
+	public void setStatut(String statut) {
+		this.statut = statut;
 	}
 
 }

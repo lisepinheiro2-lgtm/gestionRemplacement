@@ -11,6 +11,7 @@ public class Replacement {
 	private String endTime;
 	private double contractHoursEmployeeToReplace;
 	private double contractHoursReplacementEmployee;
+	private String absenceId;
 
 	public Replacement(Employee employeeToReplace, double contractHoursEmployeeToReplace, Employee replacementEmployee,
 			double contractHoursReplacementEmployee, String startDate, String startTime, String endDate, String endTime) {
@@ -87,6 +88,14 @@ public class Replacement {
 
 	public void setEndDate(String endDate) {
 		this.endDate = endDate;
+	}
+
+	public String getAbsenceId() {
+		return absenceId;
+	}
+
+	public void setAbsenceId(String absenceId) {
+		this.absenceId = absenceId;
 	}
 
 }

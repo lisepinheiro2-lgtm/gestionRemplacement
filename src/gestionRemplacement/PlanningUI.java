@@ -25,11 +25,13 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -899,6 +901,12 @@ public class PlanningUI extends JPanel {
 		LocalDate monday = intervention.getStartDate().with(DayOfWeek.MONDAY);
 		LocalDateTime weekStart = monday.atStartOfDay();
 		LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
+		String recurringId = intervention.getRecurringId();
+		JCheckBox assignSeriesBox = new JCheckBox("Attribuer toutes les occurrences à cet employé");
+
+		if (recurringId != null && !recurringId.isBlank()) {
+			employeesPanel.add(assignSeriesBox);
+		}
 
 		for (Employee employee : personnel.getEmployees()) {
 
@@ -943,10 +951,23 @@ public class PlanningUI extends JPanel {
 
 			employeeButton.addActionListener(event -> {
 
-				if (overtimeHours > 0) {
+				List<Intervention> interventionsToAssign = assignSeriesBox.isSelected()
+						? planning.getInterventionsByRecurringId(recurringId)
+						: List.of(intervention);
+
+				if (planning.hasOverlap(employee, interventionsToAssign)) {
+					JOptionPane.showMessageDialog(this,
+							"Cet employé a un chevauchement sur au moins une des interventions.");
+					return;
+				}
+
+				double totalOverrun = planning.getProjectedWeeklyOverrun(employee, interventionsToAssign);
+
+				if (totalOverrun > 0) {
 					int confirmation = JOptionPane.showConfirmDialog(this,
 							"Cette attribution causerait dépassement des heures prévues sur les semaines concernées. "
-									+ String.format("%.2f", overtimeHours) + " h.\nVoulez-vous continuer ?",
+									+ FormatUtils.formatContractHours(totalOverrun)
+									+ "\nVoulez-vous continuer ?",
 							"dépassement des heures prévues sur les semaines concernées", JOptionPane.YES_NO_OPTION,
 							JOptionPane.WARNING_MESSAGE);
 
@@ -955,7 +976,11 @@ public class PlanningUI extends JPanel {
 					}
 				}
 
-				planning.assignEmployee(intervention, employee);
+				planning.assignEmployee(interventionsToAssign, employee);
+
+				if (assignSeriesBox.isSelected()) {
+					recurringInterventionList.assignEmployeeByRecurringId(recurringId, employee);
+				}
 
 				refreshPlanning();
 

@@ -39,6 +39,21 @@ public class RecurringInterventionList {
 		return null;
 	}
 
+	public void assignEmployeeByRecurringId(String recurringId, Employee employee) {
+
+		if (recurringId == null || recurringId.isBlank()) {
+			return;
+		}
+
+		for (RecurringIntervention recurring : recurringInterventions) {
+			if (recurringId.equals(recurring.getId())) {
+				recurring.setEmployee(employee);
+				saveRecurringInterventions();
+				return;
+			}
+		}
+	}
+
 	private void loadRecurringInterventions() {
 
 		File file = new File(fileName);

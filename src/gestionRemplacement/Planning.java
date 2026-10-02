@@ -5,13 +5,17 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.security.cert.LDAPCertStoreParameters;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.TreeSet;
 
 public class Planning {
 
@@ -442,6 +446,139 @@ public class Planning {
 		}
 
 		return Duration.between(countedStart, countedEnd).toMinutes() / 60.0;
+	}
+
+	public ArrayList<Intervention> getInterventionsByRecurringId(String recurringId) {
+
+		ArrayList<Intervention> matches = new ArrayList<>();
+
+		if (recurringId == null || recurringId.isBlank()) {
+			return matches;
+		}
+
+		for (Intervention current : interventions) {
+			if (recurringId.equals(current.getRecurringId())) {
+				matches.add(current);
+			}
+		}
+
+		return matches;
+	}
+
+	public double getProjectedWeeklyOverrun(Employee employee, List<Intervention> interventionsToAssign) {
+
+		TreeSet<LocalDate> weeks = new TreeSet<>();
+
+		for (Intervention current : interventionsToAssign) {
+			LocalDate monday = current.getStartDate().with(DayOfWeek.MONDAY);
+			LocalDateTime end = LocalDateTime.of(current.getEndDate(), current.getEndTime());
+
+			while (monday.atStartOfDay().isBefore(end)) {
+				weeks.add(monday);
+				monday = monday.plusWeeks(1);
+			}
+		}
+
+		double totalOverrun = 0;
+
+		for (LocalDate monday : weeks) {
+			LocalDateTime weekStart = monday.atStartOfDay();
+			LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
+
+			double projectedHours = getWeeklyHours(employee, monday);
+
+			for (Intervention current : interventionsToAssign) {
+				Employee assigned = current.getEmployee();
+
+				boolean alreadyAssigned = assigned != null && assigned.getFirstName().equals(employee.getFirstName())
+						&& assigned.getLastName().equals(employee.getLastName());
+
+				if (!alreadyAssigned) {
+					projectedHours += getInterventionHoursInPeriod(current, weekStart, weekEnd);
+				}
+			}
+
+			totalOverrun += Math.max(0, projectedHours - employee.getContractHours());
+		}
+
+		return totalOverrun;
+	}
+
+	public void assignEmployee(List<Intervention> interventionsToAssign, Employee employee) {
+
+		for (Intervention current : interventionsToAssign) {
+		    current.setEmployee(employee);
+		}
+
+		saveInterventions();
+	}
+
+	public boolean hasOverlap(Employee employee, List<Intervention> interventionsToAssign) {
+
+		ArrayList<Intervention> ordered = new ArrayList<>(interventionsToAssign);
+
+		ordered.sort(Comparator.comparing(current -> LocalDateTime.of(current.getStartDate(), current.getStartTime())));
+
+		LocalDateTime previousEnd = null;
+
+		for (Intervention current : ordered) {
+			if (hasOverlap(employee, current)) {
+				return true;
+			}
+
+			LocalDateTime start = LocalDateTime.of(current.getStartDate(), current.getStartTime());
+			LocalDateTime end = LocalDateTime.of(current.getEndDate(), current.getEndTime());
+
+			if (previousEnd != null && start.isBefore(previousEnd)) {
+				return true;
+			}
+
+			previousEnd = end;
+		}
+
+		return false;
+	}
+
+	public HoursAlert getHoursAlert(Employee employee, LocalDate date, boolean monthly) {
+		double expectedHours = monthly ? employee.getContractHours() * 52 / 12 : employee.getContractHours();
+		double assignedHours = monthly ? getMonthyHours(employee, date) : getWeeklyHours(employee, date);
+		long remainingMinutes = Math.round((expectedHours - assignedHours) * 60);
+
+		if (remainingMinutes < 0) {
+			return HoursAlert.ALERT;
+		}
+
+		if (remainingMinutes == 0 && expectedHours > 0) {
+			return HoursAlert.TARGET_REACHED;
+		}
+
+		if (expectedHours <= 0) {
+			return HoursAlert.IN_PROGRESS;
+		}
+
+		LocalDate periodStart = monthly ? date.withDayOfMonth(1)
+				: date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
+		LocalDate periodEnd = monthly ? periodStart.plusMonths(1) : periodStart.plusWeeks(1);
+
+		long periodDays = ChronoUnit.DAYS.between(periodStart, periodEnd);
+		long remainingDays = ChronoUnit.DAYS.between(LocalDate.now(), periodEnd);
+
+		remainingDays = Math.max(0, Math.min(periodDays, remainingDays));
+
+		double remainingTimeRatio = remainingDays / (double) periodDays;
+		double remainingHoursRatio = (remainingMinutes / 60.0) / expectedHours;
+
+		boolean nearPeriodEnd = monthly ? remainingTimeRatio <= 0.20 : remainingDays <= 3;
+
+		if (remainingDays == 0 || (nearPeriodEnd && remainingHoursRatio > 0.25)) {
+			return HoursAlert.ALERT;
+		}
+
+		if (remainingHoursRatio > remainingTimeRatio + 0.15) {
+			return HoursAlert.WATCH;
+		}
+		return HoursAlert.IN_PROGRESS;
 	}
 
 	public void assignEmployee(Intervention intervention, Employee employee) {

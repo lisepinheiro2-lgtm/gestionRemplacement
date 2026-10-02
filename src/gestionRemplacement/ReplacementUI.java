@@ -229,7 +229,7 @@ public class ReplacementUI extends JPanel {
 
 			Employee employeeToReplace = personnel.findEmployee(replacement.getEmployeeToReplace());
 			Employee replacementEmployee = personnel.findEmployee(replacement.getReplacementEmployee());
-			String replacementText = "Attribution individuelle";
+			String replacementText = replacement.getAbsenceId() != null ? "Non attribué" : "Attribution individuelle";
 			String replacementHours = "-";
 
 			if (replacementEmployee != null) {
@@ -246,7 +246,7 @@ public class ReplacementUI extends JPanel {
 		}
 	}
 
-	private void refreshTable() {
+	public void refreshTable() {
 
 		tableModel.setRowCount(0);
 		loadTable();

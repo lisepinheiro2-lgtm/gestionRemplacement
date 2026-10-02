@@ -96,10 +96,12 @@ public class FormatUtils {
 	public static String formatContractHours(double hours) {
 
 		int totalMinutes = (int) Math.round(hours * 60);
-		int hour = totalMinutes / 60;
-		int minutes = totalMinutes % 60;
+		int absoluteMinutes = Math.abs(totalMinutes);
+		String sign = totalMinutes < 0 ? "-" : "";
+		int hour = absoluteMinutes / 60;
+		int minutes = absoluteMinutes % 60;
 
-		return String.format("%dh%02d", hour, minutes);
+		return sign + String.format("%dh%02d", hour, minutes);
 	}
 
 }

@@ -19,21 +19,26 @@ public class PersonnelList {
 		sortEmployees();
 	}
 
-	public void addEmployee(String firstName, String lastName, double contractHours) {
+	public void addEmployee(String firstName, String lastName, double contractHours, String statut,
+			double attribuateHours, double nonAttribuateHours) {
 
-		employees.add(new Employee(firstName, lastName, contractHours));
+		employees.add(new Employee(firstName, lastName, contractHours, statut, attribuateHours, nonAttribuateHours));
 
 		sortEmployees();
 		saveEmployees();
 	}
 
-	public void editEmployee(int index, String firstName, String lastName, double contractHours) {
+	public void editEmployee(int index, String firstName, String lastName, double contractHours, String statut,
+			double attribuateHours, double nonAttribuateHours) {
 
 		Employee employee = employees.get(index);
 
 		employee.setFirstName(firstName);
 		employee.setLastName(lastName);
 		employee.setContractHours(contractHours);
+		employee.setStatut(statut);
+		employee.setAttribuateHours(attribuateHours);
+		employee.setNonAttribuateHours(nonAttribuateHours);
 
 		saveEmployees();
 		sortEmployees();
@@ -58,7 +63,8 @@ public class PersonnelList {
 
 			for (Employee employee : employees) {
 				writer.write(employee.getFirstName() + ";" + employee.getLastName() + ";" + employee.getContractHours()
-						+ System.lineSeparator());
+						+ ";" + employee.getStatut() + ";" + employee.getAttribuateHours() + ";"
+						+ employee.getNonAttribuateHours() + System.lineSeparator());
 			}
 
 			writer.close();
@@ -85,28 +91,33 @@ public class PersonnelList {
 			while ((line = reader.readLine()) != null) {
 				String[] data = line.split(";");
 
-				if (data.length == 3) {
+				if (data.length == 6) {
 
 					String firstName = data[0];
 					String lastName = data[1];
 					double contractHours = Double.parseDouble(data[2]);
+					String statut = data[3];
+					double attribuateHours = Double.parseDouble(data[4]);
+					double nonAttribuateHours = Double.parseDouble(data[5]);
 
-					employees.add(new Employee(firstName, lastName, contractHours));
+					employees.add(new Employee(firstName, lastName, contractHours, statut, attribuateHours,
+							nonAttribuateHours));
 
-				} else if (data.length == 2) {
-
+				} else if (data.length == 3) {
 					String firstName = data[0];
 					String lastName = data[1];
-
-					employees.add(new Employee(firstName, lastName, 0));
+					double contractHours = Double.parseDouble(data[2]);
+					
+					employees.add(new Employee(firstName, lastName, contractHours, "Opérationnel", 0, 0));
 				}
-			}
 
+			}
 			reader.close();
 
 		} catch (IOException e) {
 			System.out.println("Erreur à la fermeture du fichier employees.");
 			e.printStackTrace();
+
 		}
 	}
 
