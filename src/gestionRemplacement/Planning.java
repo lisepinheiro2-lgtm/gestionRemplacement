@@ -424,7 +424,7 @@ public class Planning {
 		saveInterventions();
 	}
 
-	public double getInterventionHoursInPeriod(Intervention intervention, LocalDateTime periodStart,
+	public static double getInterventionHoursInPeriod(Intervention intervention, LocalDateTime periodStart,
 			LocalDateTime periodEnd) {
 
 		LocalDateTime interventionStart = LocalDateTime.of(intervention.getStartDate(), intervention.getStartTime());
