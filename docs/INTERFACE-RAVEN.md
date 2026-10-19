@@ -1,6 +1,6 @@
 # Accueil Gestion + avec Raven
 
-L'accueil conserve les trois rangées demandées : Personnel / Clients, Planning / Remplacements, Interventions / Archives. Les cinq destinations actives utilisent les méthodes de navigation existantes. Archives reste désactivé avec « À venir », car ArchivedInterventionUI est encore vide.
+L'accueil conserve les trois rangées initiales : Personnel / Clients, Planning / Remplacements, Interventions / Archives. Les cinq destinations actives utilisent les méthodes de navigation existantes. Archives reste désactivé avec « À venir », car ArchivedInterventionUI est encore vide.
 
 Les cartes héritent du bouton stylé Raven. L'interrupteur animé clair/sombre et ses deux SVG viennent du composant Raven DarkLightSwitchIcon. Les icônes des six espaces sont dessinées en Java et s'adaptent à la taille d'affichage. FlatLaf 3.7.2, FlatLaf Extras 3.7.2 et JSVG 2.1.0 sont repris des bibliothèques locales de RavenGallery.
 
