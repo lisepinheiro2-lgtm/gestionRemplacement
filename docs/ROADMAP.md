@@ -1,6 +1,6 @@
 # Feuille de route du projet gestion
 
-Mise en cohérence documentaire du **20 octobre 2026**. Cette liste conserve les améliorations demandées par écran ainsi que les chantiers de fiabilité déjà suivis. **Une demande inscrite ici n'est pas une fonctionnalité terminée.** Aucun calendrier de livraison n'est fixé.
+Mise en cohérence documentaire du **20 octobre 2026**. Cette liste conserve les améliorations prévues ainsi que les chantiers de fiabilité déjà suivis. **Une amélioration inscrite ici n'est pas une fonctionnalité terminée.** Aucun calendrier de livraison n'est fixé.
 
 « À réaliser » signifie qu'aucune implémentation complète n'est établie dans l'état lu. « Partiel » signale un socle ou une partie existante. La réussite des parcours reste distincte de leur présence dans le code ; voir [VALIDATION.md](VALIDATION.md).
 
