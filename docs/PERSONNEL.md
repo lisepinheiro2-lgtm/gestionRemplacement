@@ -1,6 +1,6 @@
 # Page Personnel : carte des classes
 
-Tous les noms ci-dessous correspondent à la version locale refactorisée. Les chemins sont relatifs à ce document.
+État relu dans les sources le **20 octobre 2026**. Les chemins sont relatifs à ce document et utilisent le package actuel `gestion`. Les parcours ci-dessous décrivent le code présent, pas une validation récente de chaque action.
 
 ## Commencer par les fonctionnalités
 
@@ -16,49 +16,49 @@ Tous les noms ci-dessous correspondent à la version locale refactorisée. Les c
 
 | Classe | Rôle exact |
 |---|---|
-| [PersonnelPanel](../src/gestionRemplacement/ui/personnel/PersonnelPanel.java) | Assemble formulaire et tableau ; transmet les actions au contrôleur et présente les erreurs. |
-| [PersonnelController](../src/gestionRemplacement/controller/PersonnelController.java) | Valide les noms, heures et dates ; ajoute, modifie ou supprime un employé ; change son statut ; construit les lignes calculées. Aucun composant Swing. |
-| [PersonnelTableModel](../src/gestionRemplacement/ui/personnel/PersonnelTableModel.java) | Adapte les résumés au tableau Swing ; les trois premières colonnes sont modifiables. Son interface interne `EditHandler` transmet les modifications. |
-| [HoursPeriodSelector](../src/gestionRemplacement/ui/personnel/HoursPeriodSelector.java) | Choisit semaine/mois, avance ou recule et affiche la période. Les colonnes attribuées/restantes ont chacune leur sélecteur indépendant. |
-| [EmployeeStatusDialog](../src/gestionRemplacement/ui/personnel/EmployeeStatusDialog.java) | Saisie du statut et des dates, affichage des erreurs de validation ou de sauvegarde. |
+| [PersonnelPanel](../src/gestion/ui/personnel/PersonnelPanel.java) | Assemble formulaire et tableau ; transmet les actions au contrôleur et présente les erreurs. |
+| [PersonnelController](../src/gestion/controller/PersonnelController.java) | Valide les saisies de noms/heures et l’ordre des dates du dialogue ; coordonne les employés, changements de statut et lignes calculées. Aucun composant Swing. Toutes les préconditions métier ne sont pas centralisées dans le modèle/service. |
+| [PersonnelTableModel](../src/gestion/ui/personnel/PersonnelTableModel.java) | Adapte les résumés au tableau Swing ; les trois premières colonnes sont modifiables. Son interface interne `EditHandler` transmet les modifications. |
+| [HoursPeriodSelector](../src/gestion/ui/personnel/HoursPeriodSelector.java) | Choisit semaine/mois, avance ou recule et affiche la période. Les colonnes attribuées/restantes ont chacune leur sélecteur indépendant. |
+| [EmployeeStatusDialog](../src/gestion/ui/personnel/EmployeeStatusDialog.java) | Saisie du statut et des dates, affichage des erreurs de validation ou de sauvegarde. |
 
 ## Services, modèles et persistance
 
 | Classe | Rôle exact |
 |---|---|
-| [PersonnelService](../src/gestionRemplacement/service/PersonnelService.java) | Collection des employés, ajout, modification, suppression, recherche et tri. |
-| [EmployeeCsvRepository](../src/gestionRemplacement/repository/EmployeeCsvRepository.java) | Charge et sauvegarde `employees.csv`, avec compatibilité des lignes historiques à trois colonnes. |
-| [Employee](../src/gestionRemplacement/model/Employee.java) | Identité et contrat hebdomadaire ; conserve les anciens champs nécessaires au format CSV. |
-| [AbsenceService](../src/gestionRemplacement/service/AbsenceService.java) | Statut à une date, contrôle des chevauchements, ajout d’absence, reprise et synchronisation des demandes de remplacement. Rétablit la mémoire si la sauvegarde de l’absence échoue. |
-| [AbsenceCsvRepository](../src/gestionRemplacement/repository/AbsenceCsvRepository.java) | Charge et sauvegarde `employee_absences.csv` ; valide la structure des lignes et retrouve l’employé partagé. |
-| [EmployeeAbsence](../src/gestionRemplacement/model/EmployeeAbsence.java) | Identifiant d’absence, employé, statut et dates inclusives. |
-| [EmployeeStatus](../src/gestionRemplacement/model/EmployeeStatus.java) | Énumération : opérationnel, congés, maladie, autre absence. |
-| [WorkHoursService](../src/gestionRemplacement/service/WorkHoursService.java) | Calcule les heures hebdomadaires/mensuelles, les dépassements projetés et les alertes. |
-| [PlanningService](../src/gestionRemplacement/service/PlanningService.java) | Collection des interventions, affectations, contrôles de chevauchement, génération et suppression des occurrences. Fournit les interventions au calcul des heures. |
-| [InterventionCsvRepository](../src/gestionRemplacement/repository/InterventionCsvRepository.java) | Charge et sauvegarde `interventions.csv` avec les références aux employés et clients. |
-| [Intervention](../src/gestionRemplacement/model/Intervention.java) | Client, employé éventuellement affecté, début, fin et identifiant de série. |
-| [HoursAlert](../src/gestionRemplacement/model/HoursAlert.java) | Énumération des quatre niveaux d’alerte sur les heures. |
-| [EmployeeSummary](../src/gestionRemplacement/model/EmployeeSummary.java) | Résultat calculé pour l’affichage : employé, statut, heures attribuées/restantes et alertes des deux périodes. |
-| [ReplacementService](../src/gestionRemplacement/service/ReplacementService.java) | Collection des remplacements ; crée, actualise et retire les demandes liées aux absences. |
-| [ReplacementCsvRepository](../src/gestionRemplacement/repository/ReplacementCsvRepository.java) | Charge et sauvegarde `replacements.csv`, y compris le lien `absenceId`. |
-| [Replacement](../src/gestionRemplacement/model/Replacement.java) | Employé à remplacer, remplaçant éventuel, période, contrats et lien avec l’absence. |
-| [CsvReferences](../src/gestionRemplacement/repository/CsvReferences.java) | Résout les références historiques prénom/nom lors du chargement des absences, interventions et récurrences. |
-| [FormatUtils](../src/gestionRemplacement/util/FormatUtils.java) | Conversion des saisies de dates/heures et affichage des durées. |
+| [PersonnelService](../src/gestion/service/PersonnelService.java) | Collection des employés, ajout, modification, suppression, recherche et tri. |
+| [EmployeeCsvRepository](../src/gestion/repository/EmployeeCsvRepository.java) | Charge et sauvegarde `employees.csv`, avec compatibilité des lignes historiques à trois colonnes. |
+| [Employee](../src/gestion/model/Employee.java) | Identité et contrat hebdomadaire ; conserve les anciens champs nécessaires au format CSV. |
+| [AbsenceService](../src/gestion/service/AbsenceService.java) | Statut à une date, contrôle des chevauchements, ajout/reprise et synchronisation des demandes. Restaure la mémoire sur échec de sauvegarde de l’absence ; ne garantit pas une transaction avec la demande de remplacement. |
+| [AbsenceCsvRepository](../src/gestion/repository/AbsenceCsvRepository.java) | Charge et sauvegarde `employee_absences.csv` ; valide la structure des lignes et retrouve l’employé partagé. |
+| [EmployeeAbsence](../src/gestion/model/EmployeeAbsence.java) | Identifiant d’absence, employé, statut et dates inclusives. |
+| [EmployeeStatus](../src/gestion/model/EmployeeStatus.java) | Énumération : opérationnel, congés, maladie, autre absence. |
+| [WorkHoursService](../src/gestion/service/WorkHoursService.java) | Calcule les heures hebdomadaires/mensuelles, les dépassements projetés et les alertes. |
+| [PlanningService](../src/gestion/service/PlanningService.java) | Collection des interventions, affectations, contrôles de chevauchement, génération et suppression des occurrences. Fournit les interventions au calcul des heures. |
+| [InterventionCsvRepository](../src/gestion/repository/InterventionCsvRepository.java) | Charge et sauvegarde `interventions.csv` avec les références aux employés et clients. |
+| [Intervention](../src/gestion/model/Intervention.java) | Client, employé éventuellement affecté, début, fin et identifiant de série. |
+| [HoursAlert](../src/gestion/model/HoursAlert.java) | Énumération des quatre niveaux d’alerte sur les heures. |
+| [EmployeeSummary](../src/gestion/model/EmployeeSummary.java) | Résultat calculé pour l’affichage : employé, statut, heures attribuées/restantes et alertes des deux périodes. |
+| [ReplacementService](../src/gestion/service/ReplacementService.java) | Collection des remplacements ; crée, actualise et retire les demandes liées aux absences. |
+| [ReplacementCsvRepository](../src/gestion/repository/ReplacementCsvRepository.java) | Charge et sauvegarde `replacements.csv`, y compris `absenceId`. Les erreurs de sauvegarde restent interceptées sans propagation et le chargement reconstruit ses propres employés. |
+| [Replacement](../src/gestion/model/Replacement.java) | Employé à remplacer, remplaçant éventuel, période, contrats et lien avec l’absence. |
+| [CsvReferences](../src/gestion/repository/CsvReferences.java) | Résout les références historiques prénom/nom lors du chargement des absences, interventions et récurrences. |
+| [FormatUtils](../src/gestion/util/FormatUtils.java) | Conversion des saisies de dates/heures et affichage des durées. |
 
 ## Usages indirects dans les autres fonctionnalités
 
 | Classe | Lien avec le personnel |
 |---|---|
-| [Main](../src/gestionRemplacement/Main.java), [ApplicationContext](../src/gestionRemplacement/app/ApplicationContext.java) | Démarrage, construction et partage des services. |
-| [MainUI](../src/gestionRemplacement/ui/MainUI.java) | Navigation et rafraîchissement de Personnel à son ouverture. |
-| [PlanningUI](../src/gestionRemplacement/ui/planning/PlanningUI.java) | Affiche le calendrier et les employés affectés. |
-| [PlanningInterventionDialogs](../src/gestionRemplacement/ui/planning/PlanningInterventionDialogs.java) | Création et modification des interventions du calendrier, avec choix d’un employé. |
-| [EmployeeAssignmentDialog](../src/gestionRemplacement/ui/planning/EmployeeAssignmentDialog.java) | Attribution individuelle ou à une série ; affiche les heures restantes et contrôle chevauchements/dépassements. |
-| [InterventionUI](../src/gestionRemplacement/ui/intervention/InterventionUI.java) | Liste, recherche, tri et suppression des interventions utilisant les employés. |
-| [InterventionCreationDialogs](../src/gestionRemplacement/ui/intervention/InterventionCreationDialogs.java) | Création d’interventions ponctuelles ou récurrentes avec employé éventuel. |
-| [RecurringInterventionService](../src/gestionRemplacement/service/RecurringInterventionService.java), [RecurringInterventionCsvRepository](../src/gestionRemplacement/repository/RecurringInterventionCsvRepository.java), [RecurringIntervention](../src/gestionRemplacement/model/RecurringIntervention.java) | Modèle, attribution et persistance des séries. Leurs occurrences dans le planning alimentent les heures de Personnel. |
-| [ReplacementUI](../src/gestionRemplacement/ui/ReplacementUI.java) | Affiche les demandes créées par les absences et utilise les employés pour les remplacements et transferts d’interventions. |
-| [ClientService](../src/gestionRemplacement/service/ClientService.java), [ClientCsvRepository](../src/gestionRemplacement/repository/ClientCsvRepository.java), [Client](../src/gestionRemplacement/model/Client.java) | Fournissent les clients nécessaires au chargement des interventions qui servent au calcul des heures. |
+| [Main](../src/gestion/Main.java), [ApplicationContext](../src/gestion/app/ApplicationContext.java) | Démarrage, construction et partage des services. |
+| [MainUI](../src/gestion/ui/MainUI.java) | Navigation et rafraîchissement de Personnel à son ouverture. |
+| [PlanningUI](../src/gestion/ui/planning/PlanningUI.java) | Affiche le calendrier et les employés affectés. |
+| [PlanningInterventionDialogs](../src/gestion/ui/planning/PlanningInterventionDialogs.java) | Création et modification des interventions du calendrier, avec choix d’un employé. |
+| [EmployeeAssignmentDialog](../src/gestion/ui/planning/EmployeeAssignmentDialog.java) | Attribution individuelle ou à une série ; affiche les heures restantes et contrôle chevauchements/dépassements. |
+| [InterventionUI](../src/gestion/ui/intervention/InterventionUI.java) | Liste, recherche, tri et suppression des interventions utilisant les employés. |
+| [InterventionCreationDialogs](../src/gestion/ui/intervention/InterventionCreationDialogs.java) | Création d’interventions ponctuelles ou récurrentes avec employé éventuel. |
+| [RecurringInterventionService](../src/gestion/service/RecurringInterventionService.java), [RecurringInterventionCsvRepository](../src/gestion/repository/RecurringInterventionCsvRepository.java), [RecurringIntervention](../src/gestion/model/RecurringIntervention.java) | Modèle, attribution et persistance des séries. Leurs occurrences dans le planning alimentent les heures de Personnel. |
+| [ReplacementUI](../src/gestion/ui/ReplacementUI.java) | Affiche les demandes créées par les absences et utilise les employés pour les remplacements et transferts d’interventions. |
+| [ClientService](../src/gestion/service/ClientService.java), [ClientCsvRepository](../src/gestion/repository/ClientCsvRepository.java), [Client](../src/gestion/model/Client.java) | Fournissent les clients nécessaires au chargement des interventions qui servent au calcul des heures. |
 
 ## Ensuite, le design
 
@@ -74,3 +74,24 @@ Dans `ui.raven`, `RavenStyledButton` et l’énumération `RavenTone` habillent 
 - `support.InMemoryPreferencesFactory` : infrastructure des tests Swing ; les préférences personnelles ne sont pas modifiées par les essais.
 
 Pour avancer sans se disperser : traiter une fonctionnalité avec son contrôleur/service/dépôt, travailler ensuite son affichage, puis vérifier son parcours et ses tests.
+
+
+
+## État actuel et cible demandée
+
+Les deux compteurs ont actuellement leurs périodes indépendantes. Le projet de modification demande **une seule sélection semaine/mois et une navigation commune**, avec un spinner. Ne pas confondre le fonctionnement présent avec cette nouvelle cible.
+
+La double action demandée sur les heures pour attribuer/désattribuer n'est pas branchée dans la vue Personnel. La connexion, le menu Compte et les préférences par utilisateur sont également futurs. Les marges, lueurs, pictogrammes de statut et interactions sont détaillés dans [ROADMAP.md](ROADMAP.md).
+
+Le statut correspond à aujourd'hui, même si les compteurs regardent une autre semaine/un autre mois. « Opérationnel aujourd'hui » n'exclut pas une absence future. La consultation, l'édition et l'annulation explicite des périodes futures restent à compléter.
+
+Une absence crée ou actualise une demande par `absenceId` ; cette opération ne transfère pas automatiquement les interventions. Les conflits du planning n'intègrent pas encore `AbsenceService`. Les heures sont calculées sur les occurrences réelles ; les anciennes valeurs conservées dans `Employee` pour le CSV ne deviennent pas la source d'affichage.
+
+## Limites à garder visibles
+
+- Changer le nom d'un employé peut laisser des références historiques fondées sur l'ancien prénom/nom dans d'autres CSV.
+- `EmployeeAbsence` et `AbsenceService.addAbsence` ne garantissent pas toutes les validations indépendamment de la vue ; le contrôleur et le chargement font certains contrôles.
+- Les erreurs d'écriture de l'absence sont remontées, mais celles du dépôt de remplacements peuvent encore être avalées.
+- Les nouveaux chemins d'affectation et la sauvegarde atomique des interventions doivent être revalidés après la dernière vague de changements.
+
+La liste des classes de test ci-dessus décrit leur périmètre existant. Les résultats sont datés dans [VALIDATION.md](VALIDATION.md) ; cette revue n'a exécuté aucun test Java. L'ordre de travail reste inventaire, factorisation, fonctionnalités, design, tests regroupés, puis commit après bilan.

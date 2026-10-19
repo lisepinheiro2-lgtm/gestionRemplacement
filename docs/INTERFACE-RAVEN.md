@@ -1,24 +1,35 @@
-# Accueil Gestion + avec Raven
+# Accueil et composants Raven
 
-L'accueil conserve les trois rangées demandées : Personnel / Clients, Planning / Remplacements, Interventions / Archives. Les cinq destinations actives utilisent les méthodes de navigation existantes. Archives reste désactivé avec « À venir », car ArchivedInterventionUI est encore vide.
+État relu le **20 octobre 2026**. L'accueil conserve trois rangées : Personnel / Clients, Planning / Remplacements, Interventions / Archives. Cinq accès sont actifs. **Archives reste désactivé avec « À venir »** : aucun écran d'archives n'est construit ; l'ancienne classe vide `ArchivedInterventionUI` a été retirée.
 
-Les cartes héritent du bouton stylé Raven. L'interrupteur animé clair/sombre et ses deux SVG viennent du composant Raven DarkLightSwitchIcon. Les icônes des six espaces sont dessinées en Java et s'adaptent à la taille d'affichage. FlatLaf 3.7.2, FlatLaf Extras 3.7.2 et JSVG 2.1.0 sont repris des bibliothèques locales de RavenGallery.
+## Composants actuels
 
-Le thème est mémorisé comme avant. L'interrupteur du bandeau et la case Mode sombre dans Paramètres utilisent le même réglage. UIUtils préserve le rendu propre aux nouveaux composites et continue d'appliquer les couleurs métier des écrans existants. La taille minimale est 760 × 650 afin de garder les six cartes utilisables.
+Les cartes héritent du bouton stylé Raven. L'interrupteur clair/sombre utilise `DarkLightSwitchIcon` et les SVG de thème. Les icônes des six espaces sont dessinées en Java. Les dépendances configurées dans `lib` sont FlatLaf 3.7.2, FlatLaf Extras 3.7.2 et JSVG 2.1.0.
 
-Fichiers principaux :
+| Fichier | Responsabilité |
+| --- | --- |
+| [HomePanel](../src/gestion/ui/HomePanel.java) | Présentation des six accès et callbacks des cinq destinations actives. |
+| [HomeCardButton](../src/gestion/ui/HomeCardButton.java) | Apparence, clavier et état activé/désactivé des cartes. |
+| [ApplicationHeader](../src/gestion/ui/ApplicationHeader.java) | Titre courant, retour accueil, paramètres et thème. |
+| [NavigationIcon](../src/gestion/ui/NavigationIcon.java) | Icônes vectorielles de navigation. |
+| [MainUI](../src/gestion/ui/MainUI.java) | Assemblage des vues, navigation et préférences de fenêtre. |
+| [UIUtils](../src/gestion/ui/UIUtils.java) | Thème partagé, couleurs métier et application du style. |
+| [Composants Raven](../src/gestion/ui/raven/) | Boutons et interrupteur adaptés à l'application. |
+| [SVG de thème](../src/icons/theme/) | Images clair/sombre. |
+| [Licence Raven](../licenses/Raven-MIT.txt) | Notice MIT conservée. |
 
-- `src/gestionRemplacement/ui/HomePanel.java` : présentation de l'accueil et ses six accès.
-- `src/gestionRemplacement/ui/HomeCardButton.java` : apparence et comportement des cartes.
-- `src/gestionRemplacement/ui/ApplicationHeader.java` : identité, écran courant, retour à l'accueil, thème et paramètres.
-- `src/gestionRemplacement/ui/NavigationIcon.java` : icônes vectorielles.
-- `src/gestionRemplacement/ui/raven/` : composants Raven adaptés au package de l'application, avec licence MIT dans `licenses/`.
-- `src/gestionRemplacement/ui/MainUI.java` : assemblage et navigation.
-- `src/gestionRemplacement/ui/UIUtils.java` : thème partagé et installation de FlatLaf.
+L'interrupteur du bandeau et l'option Mode sombre des paramètres utilisent le même réglage. Les préférences d'affichage utilisent toujours `/gestionRemplacement`. La fenêtre a une taille minimale de 760 × 650. Le point d'entrée est `gestion.Main` ; le module reste `gestionRemplacement`.
 
-Sauvegarde préalable des sources et du Build Path : `C:/Users/lisep/.codex/.chatgpt-projects/g-p-6ab52fec5098819184c6c56fef03660f/gestion-redesign/backup`.
+## Évolutions demandées
 
-Validation préparatoire : compilation Java 25 en mode modules, rendu clair/sombre à 1108 et 760 pixels de large, cinq callbacks de navigation conservés et archives désactivées. Les essais visuels dans Eclipse sont consignés dans le rapport de cette intégration. Aucune classe métier ni aucun fichier CSV n'est modifié par l'installateur.
+L'interface présente n'inclut pas encore le menu Compte, la connexion ou les préférences propres à chaque utilisateur. Ces demandes et les changements de lueurs, marges, sélecteurs, statuts, hachures et cellules figurent dans [ROADMAP.md](ROADMAP.md).
 
+Le nouveau souhait de période commune pour Personnel remplace le maintien des deux sélecteurs indépendants comme cible future. Les deux sélecteurs décrivent seulement l'état actuel. Le voile gris demandé remplace les hachures dans la cible future, sans prétendre que ce changement est déjà réalisé.
 
-Après la refactorisation du 19 octobre : les icônes SVG du thème sont dans `src/icons/theme`. Le point d’entrée reste `gestionRemplacement.Main`. Voir `ARCHITECTURE.md` et `PERSONNEL.md` pour les classes actuelles.
+Les pictogrammes et lueurs de statut doivent rester lisibles et compréhensibles dans les deux thèmes ; les composants métier et les calculs ne sont pas déplacés dans les renderers pour réaliser ce design.
+
+## Validation
+
+Des observations clair/sombre et essais d'assemblage ont été rapportés lors de l'intégration et de la refactorisation. Ils sont historiques. La revue documentaire actuelle n'a ni ouvert l'interface ni relancé ces essais ; voir [VALIDATION.md](VALIDATION.md).
+
+Voir aussi [l'architecture](ARCHITECTURE.md) et [la carte Personnel](PERSONNEL.md).
