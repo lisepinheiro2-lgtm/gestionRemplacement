@@ -1,106 +1,107 @@
 package gestionRemplacement;
 
+import gestionRemplacement.model.Intervention;
+import gestionRemplacement.service.WorkHoursService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class InterventionTest {
 
-	@Test
-	void getDurationHours() {
+    @Test
+    void getDurationHours() {
 
-		Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 00),
-				LocalDate.of(2026, 10, 3), LocalTime.of(12, 30));
+        Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 00),
+                LocalDate.of(2026, 10, 3), LocalTime.of(12, 30));
 
-		double durationHours = intervention.getDurationHours();
+        double durationHours = intervention.getDurationHours();
 
-		assertEquals(2.5, durationHours);
-	}
+        assertEquals(2.5, durationHours);
+    }
 
-	@Test
-	void getDurationHoursAcrossMidnight() {
+    @Test
+    void getDurationHoursAcrossMidnight() {
 
-		Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(23, 00),
-				LocalDate.of(2026, 10, 4), LocalTime.of(1, 30));
+        Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(23, 00),
+                LocalDate.of(2026, 10, 4), LocalTime.of(1, 30));
 
-		double durationHours = intervention.getDurationHours();
+        double durationHours = intervention.getDurationHours();
 
-		assertEquals(2.5, durationHours);
-	}
+        assertEquals(2.5, durationHours);
+    }
 
-	@Test
-	void getInterventionHoursSplitAcrossDays() {
+    @Test
+    void getInterventionHoursSplitAcrossDays() {
 
-		Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(23, 00),
-				LocalDate.of(2026, 10, 4), LocalTime.of(1, 30));
+        Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(23, 00),
+                LocalDate.of(2026, 10, 4), LocalTime.of(1, 30));
 
-		LocalDateTime dayOneStart = LocalDateTime.of(2026, 10, 3, 0, 0);
-		LocalDateTime dayOneEnd = LocalDateTime.of(2026, 10, 4, 0, 0);
+        LocalDateTime dayOneStart = LocalDateTime.of(2026, 10, 3, 0, 0);
+        LocalDateTime dayOneEnd = LocalDateTime.of(2026, 10, 4, 0, 0);
 
-		double dayOneHours = Planning.getInterventionHoursInPeriod(intervention, dayOneStart, dayOneEnd);
-		assertEquals(1.0, dayOneHours);
+        double dayOneHours = WorkHoursService.getInterventionHoursInPeriod(intervention, dayOneStart, dayOneEnd);
+        assertEquals(1.0, dayOneHours);
 
-		LocalDateTime dayTwoEnd = LocalDateTime.of(2026, 10, 5, 0, 0);
+        LocalDateTime dayTwoEnd = LocalDateTime.of(2026, 10, 5, 0, 0);
 
-		double dayTwoHours = Planning.getInterventionHoursInPeriod(intervention, dayOneEnd, dayTwoEnd);
-		assertEquals(1.5, dayTwoHours);
-	}
+        double dayTwoHours = WorkHoursService.getInterventionHoursInPeriod(intervention, dayOneEnd, dayTwoEnd);
+        assertEquals(1.5, dayTwoHours);
+    }
 
-	@Test
-	void getDurationHoursThirtyMinutes() {
+    @Test
+    void getDurationHoursThirtyMinutes() {
 
-		Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 0),
-				LocalDate.of(2026, 10, 3), LocalTime.of(10, 30));
+        Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 0),
+                LocalDate.of(2026, 10, 3), LocalTime.of(10, 30));
 
-		double durationHours = intervention.getDurationHours();
+        double durationHours = intervention.getDurationHours();
 
-		assertEquals(0.5, durationHours);
-	}
+        assertEquals(0.5, durationHours);
+    }
 
-	@Test
-	void getDurationHoursSeveralHours() {
+    @Test
+    void getDurationHoursSeveralHours() {
 
-		Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(8, 15),
-				LocalDate.of(2026, 10, 3), LocalTime.of(12, 0));
+        Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(8, 15),
+                LocalDate.of(2026, 10, 3), LocalTime.of(12, 0));
 
-		double durationHours = intervention.getDurationHours();
+        double durationHours = intervention.getDurationHours();
 
-		assertEquals(3.75, durationHours);
-	}
+        assertEquals(3.75, durationHours);
+    }
 
-	@Test
-	void getDurationHoursExactlyOneDay() {
+    @Test
+    void getDurationHoursExactlyOneDay() {
 
-		Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 0),
-				LocalDate.of(2026, 10, 4), LocalTime.of(10, 0));
+        Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 0),
+                LocalDate.of(2026, 10, 4), LocalTime.of(10, 0));
 
-		double durationHours = intervention.getDurationHours();
+        double durationHours = intervention.getDurationHours();
 
-		assertEquals(24.0, durationHours);
-	}
+        assertEquals(24.0, durationHours);
+    }
 
-	@Test
-	void getDurationHoursSeveralDays() {
+    @Test
+    void getDurationHoursSeveralDays() {
 
-		Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 0),
-				LocalDate.of(2026, 10, 5), LocalTime.of(12, 30));
+        Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 0),
+                LocalDate.of(2026, 10, 5), LocalTime.of(12, 30));
 
-		double durationHours = intervention.getDurationHours();
+        double durationHours = intervention.getDurationHours();
 
-		assertEquals(50.5, durationHours);
-	}
+        assertEquals(50.5, durationHours);
+    }
 
-	@Test
-	void getDurationHoursZeroDuration() {
+    @Test
+    void getDurationHoursZeroDuration() {
 
-		Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 0),
-				LocalDate.of(2026, 10, 3), LocalTime.of(10, 0));
+        Intervention intervention = new Intervention(null, null, LocalDate.of(2026, 10, 3), LocalTime.of(10, 0),
+                LocalDate.of(2026, 10, 3), LocalTime.of(10, 0));
 
-		double durationHours = intervention.getDurationHours();
+        double durationHours = intervention.getDurationHours();
 
-		assertEquals(0.0, durationHours);
-	}
+        assertEquals(0.0, durationHours);
+    }
 }

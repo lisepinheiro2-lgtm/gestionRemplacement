@@ -4,6 +4,15 @@ Application de bureau développée en **Java avec Swing** pour gérer les employ
 
 Le projet est en cours de développement. Les fonctionnalités disponibles et les améliorations prévues sont présentées ci-dessous.
 
+## Se repérer dans le code
+
+Le projet est organisé en modèles, dépôts CSV, services, contrôleur Personnel et écrans Swing. Le point d’entrée reste **`gestionRemplacement.Main`**.
+
+- [Architecture et correspondance des anciens noms](docs/ARCHITECTURE.md)
+- [Page Personnel : classes et parcours par fonctionnalité](docs/PERSONNEL.md)
+
+La refactorisation locale du **19 octobre 2026** compile avec Java 25 et passe **39 tests JUnit**. Les formats CSV et les réglages d’affichage sont conservés. L’édition des employés et le rafraîchissement après tri ont été corrigés.
+
 ## Fonctionnalités déjà codées
 
 ### Personnel et statuts
@@ -87,7 +96,6 @@ La génération des demandes automatiques est codée ; leur prise en charge comp
 - Renforcer les contrôles dans le modèle : refuser les dates d'absence inversées et le statut « Opérationnel » comme période d'absence.
 - Transmettre les erreurs de sauvegarde des remplacements à l'interface pour éviter qu'une opération semble enregistrée alors qu'elle a échoué.
 - Sécuriser les écritures des fichiers CSV et la cohérence entre les données liées.
-- Corriger l'édition des informations d'un employé lorsque les compteurs d'heures sont affichés sous forme de texte, par exemple `5h00`.
 - Préserver les liens entre employés, absences et interventions lors d'un changement de nom.
 
 ### Ergonomie et évolution du projet
@@ -96,16 +104,22 @@ La génération des demandes automatiques est codée ; leur prise en charge comp
 - Améliorer la vue Liste en conservant la recherche et le tri.
 - Poursuivre l'adaptation des interfaces au redimensionnement et harmoniser les dialogues.
 - Renforcer la validation des adresses et ajouter des profils clients.
-- Mieux séparer l'interface, les règles métier et la sauvegarde ; réduire les duplications de code.
+- Poursuivre la simplification des formulaires des autres écrans à partir de l’architecture séparée.
 - Intégrer le kit de tests automatisés au dépôt et compléter les tests du planning, des remplacements et de l'interface.
 
-## Validation actuelle
+## Validation de la refactorisation
+
+Les 16 tests existants et 23 régressions supplémentaires passent, soit **39 réussites sur 39**. La comparaison des opérations métier avant/après produit les mêmes résultats et les mêmes contenus des six CSV sur les scénarios vérifiés. Personnel a été observé en clair et en sombre ; les essais Swing couvrent l’assemblage des autres pages, les ressources et les cinq accès de l’accueil.
+
+Dans Eclipse : sélectionner `test`, puis **Run As → JUnit Test**. Les essais utilisent des dossiers temporaires et des préférences en mémoire.
+
+## Bilan historique du 2 octobre 2026
 
 Un kit autonome de **48 tests automatisés**, préparé séparément du dépôt, a été exécuté sur le code du projet le **2 octobre 2026** : **45 réussites et 3 échecs**.
 
 Ces tests couvrent notamment les calculs d'heures, les chevauchements, les attributions en lot, les absences et la sauvegarde/relecture des données. Chaque scénario utilise un dossier séparé avec des données fictives.
 
-Les trois échecs concernent les validations du modèle et la transmission des erreurs de sauvegarde, listées parmi les priorités ci-dessus. Les tests de reproduction du cas d'une absence future ne signifient pas que sa modification dans l'interface est déjà disponible. Les clics et l'apparence des fenêtres restent à vérifier.
+Les trois échecs concernent les validations du modèle et la transmission des erreurs de sauvegarde, listées parmi les priorités ci-dessus. Les tests de reproduction du cas d'une absence future ne signifient pas que sa modification dans l'interface est déjà disponible. Ce bilan historique ne correspond pas à la nouvelle suite JUnit décrite ci-dessus ; tous les parcours interactifs restent à compléter progressivement.
 
 ## Lancer le projet
 

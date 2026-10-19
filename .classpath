@@ -13,4 +13,13 @@
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/6"/>
 	<classpathentry kind="output" path="bin"/>
+	<classpathentry kind="lib" path="lib/flatlaf-3.7.2.jar">
+		<attributes><attribute name="module" value="true"/></attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="lib/flatlaf-extras-3.7.2.jar">
+		<attributes><attribute name="module" value="true"/></attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="lib/jsvg-2.1.0.jar">
+		<attributes><attribute name="module" value="true"/></attributes>
+	</classpathentry>
 </classpath>
