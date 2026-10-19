@@ -5,3 +5,4 @@ bin/
 employees.csv
 replacements.csv
 workShifts.csv
+/bin-test/
