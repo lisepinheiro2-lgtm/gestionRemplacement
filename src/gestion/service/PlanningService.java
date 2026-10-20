@@ -36,23 +36,101 @@ public class PlanningService {
 	}
 
 	public void addIntervention(Intervention intervention) {
-		interventions.add(intervention);
-		saveInterventions();
+
+		if (intervention == null) {
+			throw new IllegalArgumentException("L'intervention est null.");
+		}
+
+		if (intervention.getClient() == null) {
+			throw new IllegalArgumentException("Veuillez renseigner un client.");
+		}
+
+		LocalDateTime start = LocalDateTime.of(intervention.getStartDate(), intervention.getStartTime());
+		LocalDateTime end = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
+
+		new DateTimeRange(start, end);
+
+		if (intervention.getEmployee() != null && hasOverlap(intervention.getEmployee(), intervention)) {
+
+			throw new IllegalArgumentException("Cet intervenant possède déjà une intervention sur ce créneau.");
+		}
+
+		if (interventions.contains(intervention)) {
+			throw new IllegalArgumentException("Cette intervention existe déjà.");
+		}
+		try {
+
+			interventions.add(intervention);
+			saveInterventions();
+
+		} catch (UncheckedIOException e) {
+			interventions.remove(intervention);
+			throw new IllegalArgumentException("Erreur lors de la sauvegarde, l'intervention n'a pas pu être ajoutée");
+		}
+
+	}
+
+	private void rollbackIntervention(Intervention intervention, DateTimeRange oldPeriod, Client oldClient,
+			Employee oldEmployee) {
+
+		LocalDate startDate = oldPeriod.start().toLocalDate();
+		LocalTime startTime = oldPeriod.start().toLocalTime();
+
+		LocalDate endDate = oldPeriod.end().toLocalDate();
+		LocalTime endTime = oldPeriod.end().toLocalTime();
+
+		intervention.setClient(oldClient);
+		intervention.setEmployee(oldEmployee);
+		intervention.setStartDate(startDate);
+		intervention.setStartTime(startTime);
+		intervention.setEndDate(endDate);
+		intervention.setEndTime(endTime);
 	}
 
 	public void editIntervention(int index, Client client, Employee employee, LocalDate startDate, LocalTime startTime,
 			LocalDate endDate, LocalTime endTime) {
 
+		if (index < 0 || index >= interventions.size()) {
+			throw new IllegalArgumentException("Veuillez selectionner une intervention.");
+		}
+
 		Intervention intervention = interventions.get(index);
 
-		intervention.setClient(client);
-		intervention.setEmployee(employee);
-		intervention.setStartDate(startDate);
-		intervention.setStartTime(startTime);
-		intervention.setEndDate(endDate);
-		intervention.setEndTime(endTime);
+		if (intervention == null) {
+			throw new IllegalArgumentException("Cette intervention n'existe pas.");
+		}
 
-		saveInterventions();
+		if (employee != null) {
+
+			Intervention modifiedIntervention = new Intervention(client, employee, startDate, startTime, endDate,
+					endTime);
+
+			if (hasOverlap(employee, modifiedIntervention, intervention)) {
+				throw new IllegalArgumentException("Ce changement causerait un chevauchement.");
+			}
+		}
+
+		LocalDateTime start = LocalDateTime.of(intervention.getStartDate(), intervention.getStartTime());
+		LocalDateTime end = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
+		DateTimeRange oldPeriod = new DateTimeRange(start, end);
+		Client oldClient = intervention.getClient();
+		Employee oldEmployee = intervention.getEmployee();
+
+		try {
+
+			intervention.setClient(client);
+			intervention.setEmployee(employee);
+			intervention.setStartDate(startDate);
+			intervention.setStartTime(startTime);
+			intervention.setEndDate(endDate);
+			intervention.setEndTime(endTime);
+
+			saveInterventions();
+
+		} catch (UncheckedIOException e) {
+			rollbackIntervention(intervention, oldPeriod, oldClient, oldEmployee);
+			throw e;
+		}
 	}
 
 	public ArrayList<Intervention> getInterventionsForDay(LocalDate day) {
@@ -268,11 +346,12 @@ public class PlanningService {
 			throw new IllegalArgumentException("Veuillez sélectionner un employé.");
 		}
 
+		DateRange period = new DateRange(startDate, endDate);
+
 		if (employeeToReplace == replacementEmployee) {
 			return true;
 		}
 
-		DateRange period = new DateRange(startDate, endDate);
 		ArrayList<Intervention> interventionsToAssign = getAssignedInterventionsForPeriod(period, employeeToReplace);
 
 		if (interventionsToAssign.isEmpty()) {
