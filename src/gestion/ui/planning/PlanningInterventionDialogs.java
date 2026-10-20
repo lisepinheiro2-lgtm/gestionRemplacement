@@ -420,6 +420,12 @@ public final class PlanningInterventionDialogs {
 		} catch (DateTimeParseException e) {
 			JOptionPane.showMessageDialog(parent,
 					"Format invalide. Date : 05/03/27 ou 05/03/2027. " + "Heure : 7h, 07h, 7h30 ou 18h30.");
+		} catch (UncheckedIOException e) {
+			JOptionPane.showMessageDialog(parent, "Impossible d'ajouter l'intervention.", "Erreur de sauvegarde",
+					JOptionPane.ERROR_MESSAGE);
+			
+		} catch (IllegalArgumentException e) {
+			JOptionPane.showMessageDialog(parent, e.getMessage());
 		}
 	}
 }

@@ -156,6 +156,15 @@ public final class InterventionCreationDialogs {
 		JTextField endDateField = new JTextField();
 		JTextField endTimeField = new JTextField();
 
+		if (initialDate != null) {
+			startDateField.setText(FormatUtils.formatDate(initialDate));
+			endDateField.setText(FormatUtils.formatDate(initialDate));
+		}
+
+		if (initialTime != null) {
+			startTimeField.setText(FormatUtils.formatTime(initialTime));
+		}
+
 		formPanel.add(new JLabel("Client :"));
 		formPanel.add(clientBox);
 		formPanel.add(new JLabel("Intervenant :"));

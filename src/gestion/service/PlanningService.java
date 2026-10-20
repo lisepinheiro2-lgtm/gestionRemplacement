@@ -65,7 +65,7 @@ public class PlanningService {
 
 		} catch (UncheckedIOException e) {
 			interventions.remove(intervention);
-			throw new IllegalArgumentException("Erreur lors de la sauvegarde, l'intervention n'a pas pu être ajoutée");
+			 throw e;
 		}
 
 	}
