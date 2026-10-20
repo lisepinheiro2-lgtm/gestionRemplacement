@@ -2,7 +2,12 @@ bin/
 .settings/
 *.class
 
-employees.csv
-replacements.csv
 workShifts.csv
 /bin-test/
+
+# Fichiers locaux de récupération ; ne pas publier.
+/.gestion-transaction/
+/.gestion-*.tmp
+
+# Profil local de recette fictive, hors publication.
+/GESTION_ESSAI_FICTIF.launch

@@ -1,6 +1,7 @@
 package gestion;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -16,9 +17,9 @@ public final class Main {
         try {
             ApplicationContext application = new ApplicationContext(Path.of("."));
             SwingUtilities.invokeLater(application::openWindow);
-        } catch (IOException exception) {
+        } catch (IOException | UncheckedIOException | IllegalArgumentException exception) {
             SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null,
-                    "Impossible de charger les absences : " + exception.getMessage(), "Erreur de lecture",
+                    "Impossible de charger les données : " + exception.getMessage(), "Erreur de lecture",
                     JOptionPane.ERROR_MESSAGE));
         }
     }

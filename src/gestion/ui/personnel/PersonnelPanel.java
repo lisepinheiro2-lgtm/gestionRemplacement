@@ -1,6 +1,8 @@
 package gestion.ui.personnel;
 
 import java.awt.BorderLayout;
+import java.io.UncheckedIOException;
+import gestion.ui.ActionDialogs;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -129,16 +131,16 @@ public final class PersonnelPanel extends JPanel {
 			lastName.setText("");
 			contractHours.setText("");
 			refreshTable();
-		} catch (IllegalArgumentException exception) {
-			JOptionPane.showMessageDialog(this, exception.getMessage());
+		} catch (IllegalArgumentException | UncheckedIOException exception) {
+			ActionDialogs.error(this, exception);
 		}
 	}
 
 	private void editEmployee(Employee employee, String firstName, String lastName, String contractHours) {
 		try {
 			controller.editEmployee(employee, firstName, lastName, contractHours);
-		} catch (IllegalArgumentException exception) {
-			JOptionPane.showMessageDialog(this, exception.getMessage());
+		} catch (IllegalArgumentException | UncheckedIOException exception) {
+			ActionDialogs.error(this, exception);
 		} finally {
 			refreshTable();
 		}
@@ -150,8 +152,10 @@ public final class PersonnelPanel extends JPanel {
 			JOptionPane.showMessageDialog(this, "Veuillez sélectionner un employé.");
 			return;
 		}
-		controller.removeEmployee(model.rowAt(table.convertRowIndexToModel(row)).employee());
-		refreshTable();
+        try {
+            controller.removeEmployee(model.rowAt(table.convertRowIndexToModel(row)).employee());
+            refreshTable();
+        } catch (IllegalArgumentException | UncheckedIOException exception) { ActionDialogs.error(this, exception); }
 	}
 
 	public void refreshTable() {

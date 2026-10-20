@@ -1,6 +1,8 @@
 package gestion.ui.intervention;
 
 import java.awt.BorderLayout;
+import java.io.UncheckedIOException;
+import gestion.ui.ActionDialogs;
 import java.awt.FlowLayout;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -46,6 +48,7 @@ public class InterventionUI extends JPanel {
     private JButton removeRecurringInterventionButton;
     private JComboBox<String> viewBox;
     private int currentPage = 0;
+    private final ArrayList<Intervention> visibleRows = new ArrayList<>();
     private DefaultTableModel interventionTableModel;
     private JTable interventionTable;
     private JScrollPane interventionScrollPane;
@@ -88,6 +91,7 @@ public class InterventionUI extends JPanel {
 
         String[] views = { "Trier par...", "Dates", "Clients", "Intervenants" };
         viewBox = new JComboBox<>(views);
+        viewBox.setSelectedItem("Dates");
 
         actionsPanel.add(addInterventionButton);
         actionsPanel.add(addRecurringButton);
@@ -122,10 +126,24 @@ public class InterventionUI extends JPanel {
 
         String[] columns = { "Client", "Jour(s)", "Horaires", "Intervenant", "Type" };
 
-        interventionTableModel = new DefaultTableModel(columns, 0);
+        interventionTableModel = new DefaultTableModel(columns, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
         interventionTable = new JTable(interventionTableModel);
 
         interventionScrollPane = new JScrollPane(interventionTable);
+        interventionScrollPane.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent event) {
+                Intervention selected = getSelectedIntervention();
+                if (selected != null) {
+                    int position = buildDisplayedInterventions().indexOf(selected);
+                    if (position >= 0) currentPage = position / getInterventionsPerPage();
+                }
+                refreshIntervention();
+                int row = visibleRows.indexOf(selected);
+                if (row >= 0) interventionTable.setRowSelectionInterval(row, row);
+            }
+        });
 
         interventionPanel.setLayout(new BorderLayout());
         interventionPanel.add(interventionScrollPane, BorderLayout.CENTER);
@@ -209,9 +227,9 @@ public class InterventionUI extends JPanel {
     private void refreshIntervention(ArrayList<Intervention> displayedInterventions) {
 
         interventionTableModel.setRowCount(0);
-        displayedInterventions = buildDisplayedInterventions();
-
+        visibleRows.clear();
         int interventionsPerPage = getInterventionsPerPage();
+        currentPage = Math.min(currentPage, Math.max(0, (displayedInterventions.size() - 1) / interventionsPerPage));
         int startIndex = currentPage * interventionsPerPage;
         int endIndex = startIndex + interventionsPerPage;
 
@@ -220,17 +238,18 @@ public class InterventionUI extends JPanel {
         for (int i = startIndex; i < endIndex; i++) {
 
             Intervention intervention = displayedInterventions.get(i);
+            visibleRows.add(intervention);
 
-            String clientFirstName = intervention.getClient().getFirstName().toLowerCase();
-            String clientLastName = intervention.getClient().getLastName().toLowerCase();
+            String clientFirstName = intervention.getClient().getFirstName();
+            String clientLastName = intervention.getClient().getLastName();
             String clientFullName = clientLastName + " " + clientFirstName;
 
             String employeeFullName = "Non attribué";
 
             if (intervention.getEmployee() != null) {
 
-                String employeeFirstName = intervention.getEmployee().getFirstName().toLowerCase();
-                String employeeLastName = intervention.getEmployee().getLastName().toLowerCase();
+                String employeeFirstName = intervention.getEmployee().getFirstName();
+                String employeeLastName = intervention.getEmployee().getLastName();
                 employeeFullName = employeeLastName + " " + employeeFirstName;
             }
 
@@ -290,7 +309,8 @@ public class InterventionUI extends JPanel {
             return;
         }
 
-        planning.removeIntervention(interventionToRemove);
+        try { planning.removeIntervention(interventionToRemove); }
+        catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); return; }
 
         adjustCurrentPage();
         refreshIntervention();
@@ -312,8 +332,9 @@ public class InterventionUI extends JPanel {
             return;
         }
 
-        planning.removeInterventionsByRecurringId(recurringIdToRemove);
-        recurringInterventionList.removeRecurringInterventionById(recurringIdToRemove);
+        if (!ActionDialogs.confirm(this, "Supprimer les occurrences à venir de cette série ? Les interventions déjà commencées et leur historique seront conservés.")) return;
+        try { recurringInterventionList.removeFutureSeries(planning, recurringIdToRemove); }
+        catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); return; }
 
         adjustCurrentPage();
         refreshIntervention();
@@ -337,18 +358,10 @@ public class InterventionUI extends JPanel {
     }
 
     private Intervention getSelectedIntervention() {
-
-        int selectedRow = interventionTable.getSelectedRow();
-
-        if (selectedRow == -1) {
-            return null;
-        }
-
-        ArrayList<Intervention> displayedInterventions = buildDisplayedInterventions();
-        int currentFirstIndex = currentPage * getInterventionsPerPage();
-        int index = currentFirstIndex + selectedRow;
-
-        return displayedInterventions.get(index);
+        int row = interventionTable.getSelectedRow();
+        if (row < 0) return null;
+        row = interventionTable.convertRowIndexToModel(row);
+        return row < visibleRows.size() ? visibleRows.get(row) : null;
     }
 
     private int getInterventionsPerPage() {

@@ -71,26 +71,17 @@ public class FormatUtils {
     }
 
     public static double parseContractHours(String text) {
-
-        text = text.trim().toLowerCase().replace(",", ".");
-
-        if (text.contains("h")) {
+        if (text == null) throw new NumberFormatException("Heures manquantes.");
+        text = text.trim().toLowerCase(java.util.Locale.ROOT).replace(',', '.');
+        double value;
+        if (text.matches("\\d+h(?:[0-5]?\\d)?")) {
             String[] parts = text.split("h", -1);
-            int hours = Integer.parseInt(parts[0]);
-            int minutes = 0;
-
-            if (!parts[1].isBlank()) {
-                minutes = Integer.parseInt(parts[1]);
-            }
-
-            if (minutes < 0 || minutes > 59) {
-                throw new NumberFormatException();
-            }
-
-            return hours + minutes / 60.0;
-        }
-
-        return Double.parseDouble(text);
+            value = Double.parseDouble(parts[0]) + (parts[1].isEmpty() ? 0 : Integer.parseInt(parts[1])) / 60.0;
+        } else if (text.matches("(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?")) {
+            value = Double.parseDouble(text);
+        } else throw new NumberFormatException("Format d'heures invalide.");
+        if (!Double.isFinite(value) || value < 0) throw new NumberFormatException("Heures finies et non négatives attendues.");
+        return value;
     }
 
     public static String formatContractHours(double hours) {

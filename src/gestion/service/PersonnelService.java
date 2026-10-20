@@ -1,6 +1,11 @@
 package gestion.service;
 
 import java.nio.file.Path;
+import java.util.List;
+import java.util.function.Predicate;
+import java.util.function.Consumer;
+import gestion.repository.CsvStore;
+import gestion.util.DomainValidation;
 import java.util.ArrayList;
 import java.util.Comparator;
 
@@ -11,6 +16,32 @@ public class PersonnelService {
 
 	private ArrayList<Employee> employees = new ArrayList<>();
 	private final EmployeeCsvRepository repository;
+    private final List<Predicate<Employee>> referenceChecks = new ArrayList<>();
+    public Path getDirectory() { return repository.getDirectory(); }
+    public void protectReferences(Predicate<Employee> check) { referenceChecks.add(check); }
+    public void requireKnown(Employee person) {
+        if (person == null || !employees.contains(person))
+            throw new IllegalArgumentException("Veuillez choisir une personne de la liste actuelle.");
+    }
+    private boolean referenced(Employee person) {
+        return referenceChecks.stream().anyMatch(check -> check.test(person));
+    }
+    private void validateIdentity(Employee candidate, Employee original) {
+        DomainValidation.employee(candidate);
+        for (Employee person : employees)
+            if (person != original && person.getFirstName().equals(candidate.getFirstName())
+                    && person.getLastName().equals(candidate.getLastName()))
+                throw new IllegalArgumentException("Ce prénom et ce nom existent déjà ; les homonymes ne sont pas encore pris en charge.");
+        if (original != null && (!original.getFirstName().equals(candidate.getFirstName())
+                || !original.getLastName().equals(candidate.getLastName())) && referenced(original))
+            throw new IllegalArgumentException("Renommage refusé : cette personne est encore référencée. Les autres informations restent modifiables.");
+    }
+    private void changeList(Consumer<ArrayList<Employee>> mutation) {
+        ArrayList<Employee> previous = new ArrayList<>(employees);
+        ServiceChanges.apply(getDirectory(), () -> mutation.accept(employees), this::saveEmployees,
+                () -> { employees.clear(); employees.addAll(previous); });
+    }
+
 
 	public PersonnelService() {
 		this(new EmployeeCsvRepository(Path.of(".")));
@@ -24,36 +55,35 @@ public class PersonnelService {
 	}
 
 	public void addEmployee(String firstName, String lastName, double contractHours, String statut,
-			double assignedHours, double remainingHours) {
-
-		employees.add(new Employee(firstName, lastName, contractHours, statut, assignedHours, remainingHours));
-
-		sortEmployees();
-		saveEmployees();
-	}
+            double assignedHours, double remainingHours) {
+        Employee candidate = new Employee(firstName, lastName, contractHours, statut, assignedHours, remainingHours);
+        validateIdentity(candidate, null);
+        changeList(list -> { list.add(candidate); sortEmployees(); });
+    }
 
 	public void editEmployee(int index, String firstName, String lastName, double contractHours, String statut,
-			double assignedHours, double remainingHours) {
-
-		Employee employee = employees.get(index);
-
-		employee.setFirstName(firstName);
-		employee.setLastName(lastName);
-		employee.setContractHours(contractHours);
-		employee.setStatut(statut);
-		employee.setAssignedHours(assignedHours);
-		employee.setRemainingHours(remainingHours);
-
-		saveEmployees();
-		sortEmployees();
-	}
+            double assignedHours, double remainingHours) {
+        if (index < 0 || index >= employees.size()) throw new IllegalArgumentException("Veuillez sélectionner un employé.");
+        Employee employee = employees.get(index);
+        Employee candidate = new Employee(firstName, lastName, contractHours, statut, assignedHours, remainingHours);
+        validateIdentity(candidate, employee);
+        Employee previous = new Employee(employee.getFirstName(), employee.getLastName(), employee.getContractHours(),
+                employee.getStatut(), employee.getAssignedHours(), employee.getRemainingHours());
+        ArrayList<Employee> order = new ArrayList<>(employees);
+        ServiceChanges.apply(getDirectory(), () -> { copyValues(candidate, employee); sortEmployees(); }, this::saveEmployees,
+                () -> { copyValues(previous, employee); employees.clear(); employees.addAll(order); });
+    }
+    private static void copyValues(Employee source, Employee target) {
+        target.setFirstName(source.getFirstName()); target.setLastName(source.getLastName());
+        target.setContractHours(source.getContractHours()); target.setStatut(source.getStatut());
+        target.setAssignedHours(source.getAssignedHours()); target.setRemainingHours(source.getRemainingHours());
+    }
 
 	public void removeEmployee(int index) {
-
-		employees.remove(index);
-
-		saveEmployees();
-	}
+        if (index < 0 || index >= employees.size()) throw new IllegalArgumentException("Veuillez sélectionner un employé.");
+        if (referenced(employees.get(index))) throw new IllegalArgumentException("Suppression refusée : cet employé est encore référencé par le planning, une série, une absence ou un remplacement.");
+        changeList(list -> list.remove(index));
+    }
 
 	public ArrayList<Employee> getEmployees() {
 		return employees;

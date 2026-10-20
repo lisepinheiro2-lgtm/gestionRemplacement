@@ -1,6 +1,8 @@
 package gestion.ui.planning;
 
 import java.awt.BorderLayout;
+import java.io.UncheckedIOException;
+import gestion.ui.ActionDialogs;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -125,8 +127,8 @@ public class PlanningUI extends JPanel {
             int confirmation = JOptionPane.showConfirmDialog(this, "Supprimer cette intervention ?",
                     "Confirmer la suppression", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
             if (confirmation == JOptionPane.YES_OPTION) {
-                planning.removeIntervention(intervention);
-                refreshPlanning();
+                try { planning.removeIntervention(intervention); refreshPlanning(); }
+                catch (IllegalArgumentException | UncheckedIOException e) { ActionDialogs.error(this, e); }
             }
             break;
 

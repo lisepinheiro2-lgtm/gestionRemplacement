@@ -1,6 +1,8 @@
 package gestion.ui;
 
 import java.awt.BorderLayout;
+import java.io.UncheckedIOException;
+import gestion.ui.ActionDialogs;
 import java.awt.GridLayout;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,6 +51,7 @@ public class ReplacementUI extends JPanel {
         this.replacementList = replacementList;
         this.personnel = personnel;
         this.planning = planning;
+        replacementList.bindPersonnel(personnel);
 
         setLayout(new BorderLayout());
 
@@ -59,7 +62,7 @@ public class ReplacementUI extends JPanel {
 
     private void createInputPanel() {
 
-        JPanel inputPanel = new JPanel(new GridLayout(8, 2));
+        JPanel inputPanel = new JPanel(new GridLayout(9, 2));
 
         employeeToReplaceBox = new JComboBox<>();
         replacementEmployeeBox = new JComboBox<>();
@@ -103,6 +106,10 @@ public class ReplacementUI extends JPanel {
 
         inputPanel.add(assignAllCheckBox);
         inputPanel.add(new JLabel(""));
+        JButton assignGroup = new JButton("Attribuer les interventions non attribuées de la demande");
+        assignGroup.addActionListener(event -> assignSelectedGroup());
+        inputPanel.add(assignGroup);
+        inputPanel.add(new JLabel("Sinon : attribution individuelle depuis Planning"));
 
         addButton.addActionListener(event -> addReplacement());
         removeButton.addActionListener(event -> removeReplacement());
@@ -168,33 +175,14 @@ public class ReplacementUI extends JPanel {
         endTime = parsedEndTime.format(DateTimeFormatter.ofPattern("HH'h'mm"));
 
         Employee employeeToReplace = (Employee) employeeToReplaceBox.getSelectedItem();
-        Employee replacementEmployee = null;
-        double contractHoursEmployeeToReplace = employeeToReplace.getContractHours();
-        double contractHoursReplacementEmployee = 0;
-
-        if (assignAllCheckBox.isSelected()) {
-            replacementEmployee = (Employee) replacementEmployeeBox.getSelectedItem();
-            contractHoursReplacementEmployee = replacementEmployee.getContractHours();
-
-            if (employeeToReplace == replacementEmployee) {
-                JOptionPane.showMessageDialog(this, "L'employé à remplacer et le remplaçant doivent être différents.");
-                return;
-            }
-
-            boolean replaced = planning.replaceEmployeeInterventions(employeeToReplace, replacementEmployee,
-                    parsedStartDate, parsedEndDate);
-
-            if (!replaced) {
-                JOptionPane.showMessageDialog(this, "Le remplacement global est impossible : "
-                        + "le remplaçant a déjà une intervention sur l'une de ces plages.");
-                return;
-            }
-        } else {
-            planning.unassignEmployeeInterventions(employeeToReplace, parsedStartDate, parsedEndDate);
-        }
-
-        replacementList.addReplacement(employeeToReplace, contractHoursEmployeeToReplace, replacementEmployee,
-                contractHoursReplacementEmployee, startDate, startTime, endDate, endTime);
+        Employee replacementEmployee = assignAllCheckBox.isSelected() ? (Employee) replacementEmployeeBox.getSelectedItem() : null;
+        try {
+            personnel.requireKnown(employeeToReplace);
+            if (assignAllCheckBox.isSelected()) personnel.requireKnown(replacementEmployee);
+            if (start.isBefore(LocalDateTime.now()) && !ActionDialogs.confirm(this,
+                    "Cette demande commence dans le passé et peut modifier des attributions passées. Voulez-vous continuer ?")) return;
+            replacementList.createWithPlanning(planning, employeeToReplace, replacementEmployee, startDate, startTime, endDate, endTime);
+        } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); return; }
 
         refreshTable();
 
@@ -213,8 +201,10 @@ public class ReplacementUI extends JPanel {
             return;
         }
 
-        replacementList.removeReplacement(index);
-        refreshTable();
+        try {
+            replacementList.removeReplacement(replacementTable.convertRowIndexToModel(index));
+            refreshTable();
+        } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); }
     }
 
     private void createTable() {
@@ -222,7 +212,9 @@ public class ReplacementUI extends JPanel {
         String[] columns = { "Employé à remplacer", "Heures contrat", "Remplaçant", "Heures contrat", "Date début",
                 "Début", "Date fin", "Fin" };
 
-        tableModel = new DefaultTableModel(columns, 0);
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
         replacementTable = new JTable(tableModel);
 
         JScrollPane scrollPane = new JScrollPane(replacementTable);
@@ -243,8 +235,13 @@ public class ReplacementUI extends JPanel {
                 replacementHours = FormatUtils.formatContractHours(replacementEmployee.getContractHours());
             }
 
+            if (replacement.getAbsenceId() != null) {
+                var group = planning.getInterventionsByAbsenceId(replacement.getAbsenceId());
+                long assigned = group.stream().filter(i -> i.getEmployee() != null).count();
+                replacementText = group.isEmpty() ? "Ancienne demande (sans liens)" : assigned + "/" + group.size() + " attribuées (voir Planning)";
+            }
             Object[] row = { replacement.getEmployeeToReplace(),
-                    FormatUtils.formatContractHours(employeeToReplace.getContractHours()), replacementText,
+                    employeeToReplace == null ? "Référence manquante" : FormatUtils.formatContractHours(employeeToReplace.getContractHours()), replacementText,
                     replacementHours, replacement.getStartDate(), replacement.getStartTime(), replacement.getEndDate(),
                     replacement.getEndTime() };
 
@@ -252,8 +249,30 @@ public class ReplacementUI extends JPanel {
         }
     }
 
+    private void refreshEmployeeChoices() {
+        Employee original = (Employee) employeeToReplaceBox.getSelectedItem();
+        Employee substitute = (Employee) replacementEmployeeBox.getSelectedItem();
+        employeeToReplaceBox.removeAllItems(); replacementEmployeeBox.removeAllItems();
+        for (Employee employee : personnel.getEmployees()) {
+            employeeToReplaceBox.addItem(employee); replacementEmployeeBox.addItem(employee);
+        }
+        if (personnel.getEmployees().contains(original)) employeeToReplaceBox.setSelectedItem(original);
+        if (personnel.getEmployees().contains(substitute)) replacementEmployeeBox.setSelectedItem(substitute);
+    }
+    private void assignSelectedGroup() {
+        int row = replacementTable.getSelectedRow();
+        try {
+            if (row < 0) throw new IllegalArgumentException("Sélectionnez une demande de remplacement.");
+            Employee employee = (Employee) replacementEmployeeBox.getSelectedItem();
+            personnel.requireKnown(employee);
+            replacementList.assignUnassignedGroup(planning, replacementTable.convertRowIndexToModel(row), employee);
+            refreshTable();
+        } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); }
+    }
+
     public void refreshTable() {
 
+        refreshEmployeeChoices();
         tableModel.setRowCount(0);
         loadTable();
     }

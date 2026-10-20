@@ -25,6 +25,8 @@ import gestion.service.PersonnelService;
 import gestion.service.PlanningService;
 import gestion.service.RecurringInterventionService;
 import gestion.util.FormatUtils;
+import gestion.ui.ActionDialogs;
+import java.util.List;
 
 public final class PlanningInterventionDialogs {
 	private final Component parent;
@@ -100,7 +102,8 @@ public final class PlanningInterventionDialogs {
 			}
 		}
 
-		int result = JOptionPane.showConfirmDialog(parent, formPanel, "Modifier une intervention",
+		while (true) {
+        int result = JOptionPane.showConfirmDialog(parent, formPanel, "Modifier une intervention",
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
 		if (result != JOptionPane.OK_OPTION) {
@@ -132,7 +135,7 @@ public final class PlanningInterventionDialogs {
 
 			if (!end.isAfter(start)) {
 				JOptionPane.showMessageDialog(parent, "La fin de l'intervention doit être postérieure au début.");
-				return;
+				continue;
 			}
 
 			Intervention modifiedIntervention = new Intervention(selectedClient, selectedEmployee, startDate, startTime,
@@ -141,37 +144,29 @@ public final class PlanningInterventionDialogs {
 			if (selectedEmployee != null && planning.hasOverlap(selectedEmployee, modifiedIntervention, intervention)) {
 				JOptionPane.showMessageDialog(parent,
 						"Cet intervenant possède déjà une intervention sur cette plage horaire.");
-				return;
+				continue;
 			}
 
-			if (planning.hasOverlap(selectedClient, modifiedIntervention, intervention)) {
 
-				int confirmation = JOptionPane.showConfirmDialog(parent,
-						"Une autre intervention est déjà prévue pour ce client et chevauche ce créneau.\n"
-								+ "Voulez-vous vraiment modifier cette intervention ?",
-						"Chevauchement d'interventions", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-
-				if (confirmation != JOptionPane.YES_OPTION) {
-					return;
-				}
-			}
 
 			int index = planning.getInterventions().indexOf(intervention);
 
-			planning.editIntervention(index, selectedClient, selectedEmployee, startDate, startTime, endDate, endTime);
+            if (!ActionDialogs.confirmSaving(parent, planning, List.of(modifiedIntervention), intervention,
+                    !interventionEnd.isAfter(LocalDateTime.now()))) return;
+            planning.editIntervention(index, selectedClient, selectedEmployee, startDate, startTime, endDate, endTime);
 			onChange.run();
+            return;
 
 		} catch (DateTimeParseException e) {
 			JOptionPane.showMessageDialog(parent,
 					"Format invalide. Date : 05/03/27 ou 05/03/2027. " + "Heure : 7h, 07h, 7h30 ou 18h30.");
 		} catch (UncheckedIOException e) {
-			JOptionPane.showMessageDialog(parent,
-					"Impossible d'enregistrer les modifications. Les anciennes valeurs ont été restaurées.",
-					"Erreur de sauvegarde", JOptionPane.ERROR_MESSAGE);
+			ActionDialogs.error(parent, e);
 		} catch (IllegalArgumentException e) {
 			JOptionPane.showMessageDialog(parent, e.getMessage());
 		}
-	}
+	    }
+    }
 
 	public void openAddInterventionChoice(LocalDate initialDate, LocalTime initialTime) {
 
@@ -234,7 +229,8 @@ public final class PlanningInterventionDialogs {
 		formPanel.add(new JLabel("Date de fin :"));
 		formPanel.add(endDateField);
 
-		int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention récurrente",
+		while (true) {
+        int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention récurrente",
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
 		if (result != JOptionPane.OK_OPTION) {
@@ -259,12 +255,12 @@ public final class PlanningInterventionDialogs {
 
 			if (!endDate.isAfter(startDate) && !endDate.equals(startDate)) {
 				JOptionPane.showMessageDialog(parent, "La date de fin doit être postérieure à la date de début.");
-				return;
+				continue;
 			}
 
 			if (!endTime.isAfter(startTime)) {
 				JOptionPane.showMessageDialog(parent, "L'heure de fin doit être postérieure à l'heure de début.");
-				return;
+				continue;
 			}
 
 			LocalDate firstOccurrenceDate = startDate.with(TemporalAdjusters.nextOrSame(dayOfWeek));
@@ -272,41 +268,36 @@ public final class PlanningInterventionDialogs {
 			if (firstOccurrenceDate.isAfter(endDate)) {
 				JOptionPane.showMessageDialog(parent,
 						"La période choisie ne contient aucune occurrence du jour sélectionné.");
-				return;
+				continue;
 			}
 
 			LocalDateTime firstOccurrenceStart = LocalDateTime.of(firstOccurrenceDate, startTime);
 
-			if (firstOccurrenceStart.isBefore(LocalDateTime.now())) {
-				int confirmation = JOptionPane.showConfirmDialog(parent,
-						"Cette récurrence créera une ou plusieurs interventions dont le début est déjà passé.\n"
-								+ "Voulez-vous quand même la créer ?",
-						"Créer une intervention récurrent ayant débuté dans le passé", JOptionPane.YES_NO_OPTION,
-						JOptionPane.WARNING_MESSAGE);
 
-				if (confirmation != JOptionPane.YES_OPTION) {
-					return;
-				}
-			}
 
 			RecurringIntervention recurring = new RecurringIntervention(selectedClient, selectedEmployee, dayOfWeek,
 					startTime, endTime, startDate, endDate);
-			boolean generated = planning.generateRecurringInterventions(recurring);
+			var preview = planning.previewRecurringInterventions(recurring);
+            if (!ActionDialogs.confirmSaving(parent, planning, preview, null, false)) return;
+            boolean generated = recurringInterventionList.createWithPlanning(planning, recurring);
 
 			if (!generated) {
 				JOptionPane.showMessageDialog(parent, "Impossible de créer cette récurrence : "
 						+ "l'intervenant est déjà occupé " + "sur au moins une des interventions.");
-				return;
+				continue;
 			}
 
-			recurringInterventionList.addRecurringIntervention(recurring);
 			onChange.run();
+            return;
 
 		} catch (DateTimeParseException e) {
 			JOptionPane.showMessageDialog(parent,
 					"Format invalide.\n" + "Date : 05/03/2027\n" + "Heure : 8h, 8h30 ou 14h15");
-		}
-	}
+        } catch (UncheckedIOException | IllegalArgumentException e) {
+            ActionDialogs.error(parent, e);
+        }
+	    }
+    }
 
 	public void openAddIntervention(LocalDate initialDate, LocalTime initialTime) {
 
@@ -348,7 +339,8 @@ public final class PlanningInterventionDialogs {
 		formPanel.add(new JLabel("Date de fin :"));
 		formPanel.add(endDateField);
 
-		int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention",
+		while (true) {
+        int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention",
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
 		if (result != JOptionPane.OK_OPTION) {
@@ -380,18 +372,10 @@ public final class PlanningInterventionDialogs {
 
 			if (!end.isAfter(start)) {
 				JOptionPane.showMessageDialog(parent, "La fin de l'intervention doit être postérieure au début.");
-				return;
+				continue;
 			}
 
-			if (start.isBefore(LocalDateTime.now())) {
-				int confirmation = JOptionPane.showConfirmDialog(parent,
-						"Le début de cette intervention est déjà passé.\n" + "Voulez-vous quand même la créer ?",
-						"Créer une intervention dans le passé", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 
-				if (confirmation != JOptionPane.YES_OPTION) {
-					return;
-				}
-			}
 
 			Intervention intervention = new Intervention(selectedClient, selectedEmployee, startDate, startTime,
 					endDate, endTime);
@@ -399,33 +383,25 @@ public final class PlanningInterventionDialogs {
 			if (selectedEmployee != null && planning.hasOverlap(selectedEmployee, intervention)) {
 				JOptionPane.showMessageDialog(parent,
 						"Cet intervenant possède déjà une intervention sur cette plage horaire.");
-				return;
+				continue;
 			}
 
-			if (planning.hasOverlap(selectedClient, intervention)) {
 
-				int confirmation = JOptionPane.showConfirmDialog(parent,
-						"Une intervention est déjà prévue pour ce client et chevauche ce créneau.\n"
-								+ "Voulez-vous vraiment ajouter une deuxième intervention ?",
-						"Chevauchement d'interventions", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 
-				if (confirmation != JOptionPane.YES_OPTION) {
-					return;
-				}
-			}
-
-			planning.addIntervention(intervention);
+            if (!ActionDialogs.confirmSaving(parent, planning, List.of(intervention), null, false)) return;
+            planning.addIntervention(intervention);
 			onChange.run();
+            return;
 
 		} catch (DateTimeParseException e) {
 			JOptionPane.showMessageDialog(parent,
 					"Format invalide. Date : 05/03/27 ou 05/03/2027. " + "Heure : 7h, 07h, 7h30 ou 18h30.");
 		} catch (UncheckedIOException e) {
-			JOptionPane.showMessageDialog(parent, "Impossible d'ajouter l'intervention.", "Erreur de sauvegarde",
-					JOptionPane.ERROR_MESSAGE);
-			
+			ActionDialogs.error(parent, e);
+
 		} catch (IllegalArgumentException e) {
 			JOptionPane.showMessageDialog(parent, e.getMessage());
 		}
-	}
+	    }
+    }
 }

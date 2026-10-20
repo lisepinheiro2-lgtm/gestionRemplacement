@@ -1,5 +1,15 @@
 # Page Personnel : carte des classes
 
+## Mise à jour de fiabilisation — 20 octobre 2026
+
+Cette section remplace les limites de fiabilité de la version précédente décrites plus bas. Voir [FIABILISATION.md](FIABILISATION.md) pour le contrat complet et [ROADMAP.md](ROADMAP.md) pour la suite.
+
+Une nouvelle absence est validée au service et désattribue les interventions futures entièrement couvertes de son salarié, avec un lien durable `sourceAbsenceId` vers la demande. Le passé est conservé. Les interventions en cours ou partiellement couvertes nécessitent une décision manuelle. Les attributions consultent les absences et refusent d'affecter un salarié indisponible.
+
+Les suppressions/renommages référencés et les homonymes exacts sont bloqués. Les écritures sont sûres et les erreurs remontent ; l'absence, le planning et la demande sont coordonnés avec récupération. La reprise d'une absence ayant des interventions liées est temporairement bloquée : son rétablissement reste explicitement au suivi futur.
+
+Les notes suivantes décrivent le contexte et l'état antérieur ; elles ne doivent pas être utilisées pour conclure que les gardes ci-dessus manquent encore.
+
 État relu dans les sources le **20 octobre 2026**. Les chemins sont relatifs à ce document et utilisent le package actuel `gestion`. Les parcours ci-dessous décrivent le code présent, pas une validation récente de chaque action.
 
 ## Commencer par les fonctionnalités

@@ -1,6 +1,8 @@
 package gestion.ui.planning;
 
 import java.awt.Color;
+import java.io.UncheckedIOException;
+import gestion.ui.ActionDialogs;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Window;
@@ -62,7 +64,7 @@ public final class EmployeeAssignmentDialog {
         LocalDateTime weekStart = monday.atStartOfDay();
         LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
         String recurringId = intervention.getRecurringId();
-        JCheckBox assignSeriesBox = new JCheckBox("Attribuer toutes les occurrences à cet employé");
+        JCheckBox assignSeriesBox = new JCheckBox("Attribuer les occurrences à venir à cet employé");
 
         if (recurringId != null && !recurringId.isBlank()) {
             employeesPanel.add(assignSeriesBox);
@@ -109,10 +111,13 @@ public final class EmployeeAssignmentDialog {
                 employeeButton.setBackground(Color.RED);
             }
 
+            assignSeriesBox.addActionListener(event -> employeeButton.setEnabled(!planning.hasOverlap(employee,
+                    assignSeriesBox.isSelected() ? planning.getFutureInterventionsByRecurringId(recurringId, LocalDateTime.now()) : List.of(intervention))));
             employeeButton.addActionListener(event -> {
+                try {
 
                 List<Intervention> interventionsToAssign = assignSeriesBox.isSelected()
-                        ? planning.getInterventionsByRecurringId(recurringId)
+                        ? planning.getFutureInterventionsByRecurringId(recurringId, LocalDateTime.now())
                         : List.of(intervention);
 
                 if (planning.hasOverlap(employee, interventionsToAssign)) {
@@ -135,11 +140,8 @@ public final class EmployeeAssignmentDialog {
                     }
                 }
 
-                planning.assignEmployee(interventionsToAssign, employee);
-
-                if (assignSeriesBox.isSelected()) {
-                    recurringInterventionList.assignEmployeeByRecurringId(recurringId, employee);
-                }
+                if (assignSeriesBox.isSelected()) recurringInterventionList.assignFutureSeries(planning, recurringId, employee);
+                else planning.assignEmployee(interventionsToAssign, employee);
 
                 onChange.run();
 
@@ -148,6 +150,7 @@ public final class EmployeeAssignmentDialog {
                 if (window != null) {
                     window.dispose();
                 }
+                } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(parent, e); }
             });
 
             employeesPanel.add(employeeButton);

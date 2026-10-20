@@ -5,6 +5,8 @@ import java.awt.Component;
 import java.awt.GridLayout;
 import java.awt.Window;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import gestion.ui.ActionDialogs;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -69,9 +71,8 @@ public final class EmployeeStatusDialog {
 				JOptionPane.showMessageDialog(parent, "Saisis des dates valides au format jj/MM/aaaa.");
 			} catch (IllegalArgumentException exception) {
 				JOptionPane.showMessageDialog(parent, exception.getMessage());
-			} catch (IOException exception) {
-				JOptionPane.showMessageDialog(parent,
-						"Impossible de sauvegarder l'absence : " + exception.getMessage());
+			} catch (IOException | UncheckedIOException exception) {
+				ActionDialogs.error(parent, exception);
 			}
 		}
 	}

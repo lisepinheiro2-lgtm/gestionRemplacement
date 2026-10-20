@@ -1,106 +1,51 @@
 package gestion.repository;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-
-import gestion.model.Employee;
-import gestion.model.Replacement;
+import java.time.*;
+import java.util.*;
+import gestion.model.*;
+import gestion.util.DomainValidation;
 
 public final class ReplacementCsvRepository {
-	private final Path path;
+    private final Path path;
+    public ReplacementCsvRepository(Path directory) { path = CsvStore.directory(directory).resolve("replacements.csv"); }
+    public Path getDirectory() { return path.getParent(); }
 
-	public ReplacementCsvRepository(Path directory) {
-		path = directory.resolve("replacements.csv");
-	}
+    public ArrayList<Replacement> load() {
+        Set<String> absenceIds = new HashSet<>();
+        return CsvFormat.readUnchecked(path, cells -> {
+            CsvFormat.columns(cells, 10, 11);
+            Employee original = new Employee(cells[0], cells[1], Double.parseDouble(cells[2]), "Opérationnel", 0, 0);
+            Employee substitute = null;
+            double substituteHours = Double.parseDouble(cells[5]);
+            if (!(cells[3].isBlank() && cells[4].isBlank())) {
+                if (cells[3].isBlank() || cells[4].isBlank()) throw new IllegalArgumentException("Référence incomplète.");
+                substitute = new Employee(cells[3], cells[4], substituteHours, "Opérationnel", 0, 0);
+            }
+            Replacement replacement = new Replacement(original, original.getContractHours(), substitute,
+                    substituteHours, cells[6], cells[7], cells[8], cells[9]);
+            if (cells.length == 11 && !cells[10].isBlank()) {
+                replacement.setAbsenceId(cells[10]);
+                if (!absenceIds.add(cells[10])) throw new IllegalArgumentException("Lien d'absence dupliqué.");
+            }
+            DomainValidation.replacement(replacement);
+            return replacement;
+        });
+    }
 
-	public ArrayList<Replacement> load() {
-		ArrayList<Replacement> replacements = new ArrayList<>();
-
-		File file = path.toFile();
-		if (!file.exists()) {
-			return replacements;
-		}
-
-		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-			String line;
-
-			while ((line = reader.readLine()) != null) {
-				String[] data = line.split(";", -1);
-
-				if (data.length == 10 || data.length == 11) {
-
-					double contractHoursEmployeeToReplace = Double.parseDouble(data[2]);
-					Employee employeeToReplace = new Employee(data[0], data[1], contractHoursEmployeeToReplace, "satut",
-							0.0, 0.0);
-
-					Employee replacementEmployee = null;
-					double contractHoursReplacementEmployee = 0;
-
-					if (!data[3].isBlank() && !data[4].isBlank()) {
-
-						contractHoursReplacementEmployee = Double.parseDouble(data[5]);
-						replacementEmployee = new Employee(data[3], data[4], contractHoursReplacementEmployee, "satut",
-								0.0, 0.0);
-					}
-
-					String startDate = data[6];
-					String startTime = data[7];
-					String endDate = data[8];
-					String endTime = data[9];
-
-					Replacement replacement = new Replacement(employeeToReplace, contractHoursEmployeeToReplace,
-							replacementEmployee, contractHoursReplacementEmployee, startDate, startTime, endDate,
-							endTime);
-
-					if (data.length == 11 && !data[10].isBlank()) {
-						replacement.setAbsenceId(data[10]);
-					}
-
-					replacements.add(replacement);
-				}
-			}
-
-		} catch (IOException e) {
-			System.out.println("Erreur au chargement du fichier remplacements");
-			e.printStackTrace();
-		}
-		return replacements;
-	}
-
-	public void save(List<Replacement> replacements) {
-
-		try (FileWriter writer = new FileWriter(path.toFile())) {
-
-			for (Replacement replacement : replacements) {
-
-				String replacementFirstName = "";
-				String replacementLastName = "";
-				double replacementContractHours = 0;
-
-				if (replacement.getReplacementEmployee() != null) {
-					replacementFirstName = replacement.getReplacementEmployee().getFirstName();
-					replacementLastName = replacement.getReplacementEmployee().getLastName();
-					replacementContractHours = replacement.getContractHoursReplacementEmployee();
-				}
-
-				writer.write(replacement.getEmployeeToReplace().getFirstName() + ";"
-						+ replacement.getEmployeeToReplace().getLastName() + ";"
-						+ replacement.getContractHoursEmployeeToReplace() + ";" + replacementFirstName + ";"
-						+ replacementLastName + ";" + replacementContractHours + ";" + replacement.getStartDate() + ";"
-						+ replacement.getStartTime() + ";" + replacement.getEndDate() + ";" + replacement.getEndTime()
-						+ ";" + (replacement.getAbsenceId() == null ? "" : replacement.getAbsenceId())
-						+ System.lineSeparator());
-			}
-
-		} catch (IOException e) {
-			System.out.println("Erreur pendant la sauvegarde du fichier remplacements");
-			e.printStackTrace();
-		}
-	}
+    public void save(List<Replacement> replacements) {
+        StringBuilder content = new StringBuilder();
+        Set<String> absenceIds = new HashSet<>();
+        for (Replacement replacement : replacements) {
+            DomainValidation.replacement(replacement);
+            if (replacement.getAbsenceId() != null && !absenceIds.add(replacement.getAbsenceId()))
+                throw new IllegalArgumentException("Lien d'absence dupliqué.");
+            Employee employee = replacement.getReplacementEmployee();
+            content.append(CsvFormat.row(replacement.getEmployeeToReplace().getFirstName(), replacement.getEmployeeToReplace().getLastName(),
+                    replacement.getContractHoursEmployeeToReplace(), employee == null ? "" : employee.getFirstName(),
+                    employee == null ? "" : employee.getLastName(), employee == null ? 0 : replacement.getContractHoursReplacementEmployee(),
+                    replacement.getStartDate(), replacement.getStartTime(), replacement.getEndDate(), replacement.getEndTime(), replacement.getAbsenceId()));
+        }
+        CsvStore.write(path, content.toString());
+    }
 }

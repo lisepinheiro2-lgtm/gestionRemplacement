@@ -12,11 +12,90 @@ import gestion.model.EmployeeAbsence;
 import gestion.model.Replacement;
 import gestion.repository.ReplacementCsvRepository;
 import gestion.util.FormatUtils;
+import gestion.util.DomainValidation;
+import gestion.repository.CsvStore;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
 public class ReplacementService {
 
 	private ArrayList<Replacement> replacements = new ArrayList<>();
 	private final ReplacementCsvRepository repository;
+    private PersonnelService personnel;
+    public Path getDirectory() { return repository.getDirectory(); }
+    public void bindPersonnel(PersonnelService personnel) {
+        if (this.personnel == personnel) return;
+        if (this.personnel != null) throw new IllegalArgumentException("Personnel déjà associé.");
+        for (Replacement replacement : replacements) {
+            Employee original = personnel.findEmployee(replacement.getEmployeeToReplace());
+            Employee substitute = personnel.findEmployee(replacement.getReplacementEmployee());
+            if (original == null || (replacement.getReplacementEmployee() != null && substitute == null))
+                throw new UncheckedIOException(new IOException("replacements.csv : référence employé introuvable ; chargement refusé."));
+            replacement.setEmployeeToReplace(original);
+            replacement.setReplacementEmployee(substitute);
+        }
+        this.personnel = personnel;
+        personnel.protectReferences(employee -> replacements.stream().anyMatch(r -> r.getEmployeeToReplace() == employee
+                || r.getReplacementEmployee() == employee));
+    }
+
+    private void validate(Replacement replacement) {
+        DomainValidation.replacement(replacement);
+        if (personnel != null) {
+            personnel.requireKnown(replacement.getEmployeeToReplace());
+            if (replacement.getReplacementEmployee() != null) personnel.requireKnown(replacement.getReplacementEmployee());
+        }
+    }
+    private static Replacement copy(Replacement source) {
+        Replacement result = new Replacement(source.getEmployeeToReplace(), source.getContractHoursEmployeeToReplace(),
+                source.getReplacementEmployee(), source.getContractHoursReplacementEmployee(), source.getStartDate(),
+                source.getStartTime(), source.getEndDate(), source.getEndTime());
+        result.setAbsenceId(source.getAbsenceId());
+        return result;
+    }
+    private static void copyValues(Replacement source, Replacement target) {
+        target.setEmployeeToReplace(source.getEmployeeToReplace()); target.setReplacementEmployee(source.getReplacementEmployee());
+        target.setContractHoursEmployeeToReplace(source.getContractHoursEmployeeToReplace());
+        target.setContractHoursReplacementEmployee(source.getContractHoursReplacementEmployee());
+        target.setStartDate(source.getStartDate()); target.setStartTime(source.getStartTime());
+        target.setEndDate(source.getEndDate()); target.setEndTime(source.getEndTime()); target.setAbsenceId(source.getAbsenceId());
+    }
+    private Runnable snapshot() {
+        ArrayList<Replacement> previous = new ArrayList<>(replacements);
+        ArrayList<Replacement> values = new ArrayList<>();
+        previous.forEach(r -> values.add(copy(r)));
+        return () -> {
+            replacements.clear(); replacements.addAll(previous);
+            for (int i = 0; i < previous.size(); i++) copyValues(values.get(i), previous.get(i));
+        };
+    }
+    private void change(Runnable mutation) {
+        ServiceChanges.apply(getDirectory(), mutation, this::saveReplacements, snapshot());
+    }
+    public void assignUnassignedGroup(PlanningService planning, int index, Employee employee) {
+        if (!getDirectory().equals(planning.getDirectory())) throw new IllegalArgumentException("Dossiers de données différents.");
+        if (index < 0 || index >= replacements.size() || replacements.get(index).getAbsenceId() == null)
+            throw new IllegalArgumentException("Sélectionnez une demande liée à une absence.");
+        var targets = planning.getInterventionsByAbsenceId(replacements.get(index).getAbsenceId());
+        var now = java.time.LocalDateTime.now();
+        targets.removeIf(i -> i.getEmployee() != null || DomainValidation.intervention(i).start().isBefore(now));
+        if (targets.isEmpty()) throw new IllegalArgumentException("Aucune intervention future non attribuée dans cette demande. Les anciennes demandes ne sont pas converties automatiquement.");
+        planning.assignEmployee(targets, employee);
+    }
+    public void createWithPlanning(PlanningService planning, Employee original, Employee substitute,
+            String startDate, String startTime, String endDate, String endTime) {
+        if (!getDirectory().equals(planning.getDirectory())) throw new IllegalArgumentException("Dossiers de données différents.");
+        if (personnel != null) { personnel.requireKnown(original); if (substitute != null) personnel.requireKnown(substitute); }
+        DomainValidation.employee(original);
+        Replacement candidate = new Replacement(original, original.getContractHours(), substitute,
+                substitute == null ? 0 : substitute.getContractHours(), startDate, startTime, endDate, endTime);
+        var period = DomainValidation.replacement(candidate);
+        CsvStore.transaction(getDirectory(), () -> {
+            planning.applyReplacement(original, substitute, period);
+            addReplacement(original, original.getContractHours(), substitute, substitute == null ? 0 : substitute.getContractHours(),
+                    startDate, startTime, endDate, endTime);
+        });
+    }
 
 	public ReplacementService() {
 		this(new ReplacementCsvRepository(Path.of(".")));
@@ -30,36 +109,30 @@ public class ReplacementService {
 	}
 
 	public void addReplacement(Employee employeeToReplace, double contractHoursEmployeeToReplace,
-			Employee replacementEmployee, double contractHoursReplacementEmployee, String startDate, String startTime,
-			String endDate, String endTime) {
-
-		replacements.add(new Replacement(employeeToReplace, contractHoursEmployeeToReplace, replacementEmployee,
-				contractHoursReplacementEmployee, startDate, startTime, endDate, endTime));
-
-		sortReplacements();
-		saveReplacements();
-	}
+            Employee replacementEmployee, double contractHoursReplacementEmployee, String startDate, String startTime,
+            String endDate, String endTime) {
+        Replacement candidate = new Replacement(employeeToReplace, contractHoursEmployeeToReplace, replacementEmployee,
+                contractHoursReplacementEmployee, startDate, startTime, endDate, endTime);
+        validate(candidate);
+        change(() -> { replacements.add(candidate); sortReplacements(); });
+    }
 
 	public void editReplacements(int index, Employee employeeToReplace, double contractHoursEmployeeToReplace,
-			Employee replacementEmployee, double contractHoursReplacementEmployee, String startDate, String startTime,
-			String endDate, String endTime) {
-
-		Replacement replacement = replacements.get(index);
-
-		replacement.setEmployeeToReplace(employeeToReplace);
-		replacement.setContractHoursEmployeeToReplace(contractHoursEmployeeToReplace);
-		replacement.setReplacementEmployee(replacementEmployee);
-		replacement.setContractHoursReplacementEmployee(contractHoursReplacementEmployee);
-		replacement.setStartDate(startDate);
-		replacement.setStartTime(startTime);
-		replacement.setEndDate(endDate);
-		replacement.setEndTime(endTime);
-
-		sortReplacements();
-		saveReplacements();
-	}
+            Employee replacementEmployee, double contractHoursReplacementEmployee, String startDate, String startTime,
+            String endDate, String endTime) {
+        if (index < 0 || index >= replacements.size()) throw new IllegalArgumentException("Sélectionnez un remplacement.");
+        Replacement candidate = new Replacement(employeeToReplace, contractHoursEmployeeToReplace, replacementEmployee,
+                contractHoursReplacementEmployee, startDate, startTime, endDate, endTime);
+        candidate.setAbsenceId(replacements.get(index).getAbsenceId());
+        validate(candidate);
+        Replacement original = replacements.get(index);
+        change(() -> { copyValues(candidate, original); sortReplacements(); });
+    }
 
 	public void synchronizeAbsences(ArrayList<EmployeeAbsence> absences) {
+        if (absences == null) throw new IllegalArgumentException("Liste d'absences manquante.");
+        absences.forEach(DomainValidation::absence);
+        change(() -> {
 
 		HashSet<String> absenceIds = new HashSet<>();
 
@@ -99,9 +172,10 @@ public class ReplacementService {
 			}
 		}
 
-		sortReplacements();
-		saveReplacements();
-	}
+        sortReplacements();
+
+        });
+    }
 
 	public void sortReplacements() {
 
@@ -111,10 +185,11 @@ public class ReplacementService {
 	}
 
 	public void removeReplacement(int index) {
-		replacements.remove(index);
-
-		saveReplacements();
-	}
+        if (index < 0 || index >= replacements.size()) throw new IllegalArgumentException("Sélectionnez un remplacement.");
+        if (replacements.get(index).getAbsenceId() != null)
+            throw new IllegalArgumentException("Cette demande est liée à une absence ; sa suppression directe est désactivée pour préserver le lien.");
+        change(() -> replacements.remove(index));
+    }
 
 	public ArrayList<Replacement> getReplacements() {
 		return replacements;

@@ -23,6 +23,8 @@ import gestion.service.PersonnelService;
 import gestion.service.PlanningService;
 import gestion.service.RecurringInterventionService;
 import gestion.util.FormatUtils;
+import gestion.ui.ActionDialogs;
+import java.util.List;
 
 public final class InterventionCreationDialogs {
 	private final Component parent;
@@ -80,7 +82,8 @@ public final class InterventionCreationDialogs {
 		formPanel.add(new JLabel("Date de fin :"));
 		formPanel.add(endDateField);
 
-		int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention récurrente",
+		while (true) {
+        int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention récurrente",
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
 		if (result != JOptionPane.OK_OPTION) {
@@ -105,31 +108,36 @@ public final class InterventionCreationDialogs {
 
 			if (!endDate.isAfter(startDate) && !endDate.equals(startDate)) {
 				JOptionPane.showMessageDialog(parent, "La date de fin doit être postérieure à la date de début.");
-				return;
+				continue;
 			}
 
 			if (!endTime.isAfter(startTime)) {
 				JOptionPane.showMessageDialog(parent, "L'heure de fin doit être postérieure à l'heure de début.");
-				return;
+				continue;
 			}
 			RecurringIntervention recurring = new RecurringIntervention(selectedClient, selectedEmployee, dayOfWeek,
 					startTime, endTime, startDate, endDate);
-			boolean generated = planning.generateRecurringInterventions(recurring);
+			var preview = planning.previewRecurringInterventions(recurring);
+            if (!ActionDialogs.confirmSaving(parent, planning, preview, null, false)) return;
+            boolean generated = recurringInterventionList.createWithPlanning(planning, recurring);
 
 			if (!generated) {
 				JOptionPane.showMessageDialog(parent, "Impossible de créer cette récurrence : "
 						+ "l'intervenant est déjà occupé " + "sur au moins une des interventions.");
-				return;
+				continue;
 			}
 
-			recurringInterventionList.addRecurringIntervention(recurring);
 			onChange.run();
+            return;
 
 		} catch (DateTimeParseException e) {
 			JOptionPane.showMessageDialog(parent,
 					"Format invalide.\n" + "Date : 05/03/2027\n" + "Heure : 8h, 8h30 ou 14h15");
-		}
-	}
+        } catch (UncheckedIOException | IllegalArgumentException e) {
+            ActionDialogs.error(parent, e);
+        }
+	    }
+    }
 
 	public void openAddIntervention() {
 		openAddIntervention(null, null);
@@ -178,7 +186,8 @@ public final class InterventionCreationDialogs {
 		formPanel.add(new JLabel("Heure de fin :"));
 		formPanel.add(endTimeField);
 
-		int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention",
+		while (true) {
+        int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention",
 				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
 		if (result != JOptionPane.OK_OPTION) {
@@ -210,7 +219,7 @@ public final class InterventionCreationDialogs {
 
 			if (!end.isAfter(start)) {
 				JOptionPane.showMessageDialog(parent, "La fin de l'intervention doit être postérieure au début.");
-				return;
+				continue;
 			}
 
 			Intervention intervention = new Intervention(selectedClient, selectedEmployee, startDate, startTime,
@@ -219,22 +228,24 @@ public final class InterventionCreationDialogs {
 			if (selectedEmployee != null && planning.hasOverlap(selectedEmployee, intervention)) {
 				JOptionPane.showMessageDialog(parent,
 						"Cet intervenant possède déjà une intervention sur cette plage horaire.");
-				return;
+				continue;
 			}
 
-			planning.addIntervention(intervention);
+            if (!ActionDialogs.confirmSaving(parent, planning, List.of(intervention), null, false)) return;
+            planning.addIntervention(intervention);
 			onChange.run();
+            return;
 
 		} catch (DateTimeParseException e) {
 			JOptionPane.showMessageDialog(parent,
 					"Format invalide. Date : 05/03/27 ou 05/03/2027. " + "Heure : 7h, 07h, 7h30 ou 18h30.");
 
 		} catch (UncheckedIOException e) {
-			JOptionPane.showMessageDialog(parent, "Impossible d'ajouter l'intervention.", "Erreur de sauvegarde",
-					JOptionPane.ERROR_MESSAGE);
+			ActionDialogs.error(parent, e);
 
 		} catch (IllegalArgumentException e) {
 			JOptionPane.showMessageDialog(parent, e.getMessage());
 		}
-	}
+	    }
+    }
 }

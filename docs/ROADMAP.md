@@ -1,5 +1,19 @@
 # Feuille de route du projet gestion
 
+## Décisions et livraison de fiabilisation du 20 octobre 2026
+
+**Nouvelle cible validée :** plusieurs postes et comptes, base centrale, autorisations vérifiées côté serveur. Pas de migration ni de serveur mis en place dans cette livraison. Limiter désormais l'investissement dans les CSV aux protections indispensables pendant la transition.
+
+Les règles effectivement livrées et leurs limites sont décrites dans [FIABILISATION.md](FIABILISATION.md). Cette mise à jour prime sur les constats historiques ci-dessous : écritures/lectures et restaurations des six dépôts, coordination avec récupération, protection des références, validations et confirmations, sélection stable, remplacements à la bonne période.
+
+**Absences :** lien durable aux interventions futures désattribuées et regroupement dans la demande, attribution collective des non-attribuées ou individuelle depuis Planning. Les anciennes absences/demandes ne sont pas converties automatiquement. **À développer ensuite : reprise anticipée d'une absence ayant des interventions liées, actuellement bloquée par décision explicite de l'utilisatrice.** Définir le sort des remplaçants déjà prévus, les conflits et le rétablissement des affectations avant de débloquer cette action.
+
+**Historique :** actions globales des séries limitées aux occurrences non commencées ; prévoir ultérieurement une case explicite autorisant le traitement des occurrences passées. Les définitions nécessaires à l'historique sont conservées.
+
+**Autres décisions différées :** découpage d'une intervention partiellement remplacée avec accord du client ; identifiants stables et homonymes avec la base centrale ; modification des dates/clients d'interventions liées à une absence ; suppression/archivage de personnes référencées. Pas de fusion des deux formulaires de création dans cette passe.
+
+Les entrées plus anciennes ci-dessous restent un carnet historique et ne signifient pas que ces corrections sont encore toutes à faire.
+
 Mise en cohérence documentaire du **20 octobre 2026**. Cette liste conserve les améliorations prévues ainsi que les chantiers de fiabilité déjà suivis. **Une amélioration inscrite ici n'est pas une fonctionnalité terminée.** Aucun calendrier de livraison n'est fixé.
 
 « À réaliser » signifie qu'aucune implémentation complète n'est établie dans l'état lu. « Partiel » signale un socle ou une partie existante. La réussite des parcours reste distincte de leur présence dans le code ; voir [VALIDATION.md](VALIDATION.md).

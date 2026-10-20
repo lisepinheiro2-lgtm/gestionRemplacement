@@ -16,6 +16,10 @@ public class Intervention {
     private LocalTime startTime;
     private LocalTime endTime;
     private String recurringId;
+    // Origine durable du groupe de remplacement, conservée après attribution.
+    private String sourceAbsenceId;
+    public String getSourceAbsenceId() { return sourceAbsenceId; }
+    public void setSourceAbsenceId(String id) { sourceAbsenceId = id; }
 
     public Intervention(Client client, Employee employee, LocalDate startDate, LocalTime startTime, LocalDate endDate,
             LocalTime endTime) {

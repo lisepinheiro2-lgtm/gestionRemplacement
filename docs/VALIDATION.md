@@ -1,5 +1,17 @@
 # Tests et état des validations
 
+## Vérification de la fiabilisation — 20 octobre 2026
+
+Compilation de toutes les sources et du descripteur de module avec JDK 25.0.2, dépendances FlatLaf/JSVG locales, puis tests JUnit 6.0.1 sur fixtures fictives dans un dossier extérieur au projet de données. Les tests sont exécutés en mode classique et avec le module `gestionRemplacement`. Les préférences de test sont en mémoire ; aucune fenêtre principale ni service sur les CSV réels n'est lancé.
+
+La suite comprend les 39 tests préexistants et les régressions `ReliabilityRegressionTest`, `CsvReliabilityTest`, `UiReliabilityTest`. Elle couvre notamment les six lecteurs/écrivains, les invariants et références, les restaurations mémoire, les échecs après une première installation, une vraie interruption de processus, la récupération idempotente, le refus d'écraser un fichier modifié extérieurement, la compensation incomplète, les liens des groupes d'absence et les erreurs/sélections Swing. Les tests comparent les octets des CSV fictifs avant/après échec et rechargent les états valides.
+
+Le script [../tools/verify.py](../tools/verify.py) reproduit la compilation et les deux modes JUnit. Il exige un JDK 25, les JAR JUnit locaux et un dossier de sortie **extérieur au projet**, qu'il utilise aussi pour tous les temporaires. L'exécution avec un autre dossier temporaire non autorisé peut provoquer des refus d'accès propres au bac à sable.
+
+Les contrôles Swing sont automatisés sur composants sans fenêtre affichée. Un parcours manuel dans Eclipse sur une base fictive reste recommandé pour la disposition et les dialogues modaux complets ; aucun résultat de recette visuelle complète n'est revendiqué. Les tests ne certifient pas la résistance à toutes les pannes matérielles ni l'utilisation concurrente des CSV.
+
+Le bilan privé de livraison contient le nombre final de tests et les journaux d'exécution. Les résultats et constats plus anciens ci-dessous sont conservés pour leur chronologie.
+
 État documentaire au **20 octobre 2026**. Présence de code, test déclaré et résultat exécuté sont trois informations différentes. Cette revue a vérifié des textes, chemins et sources, sans compiler ni lancer l'application ou les tests Java.
 
 ## Suite présente dans le dépôt

@@ -1,6 +1,8 @@
 package gestion.ui;
 
 import java.awt.BorderLayout;
+import java.io.UncheckedIOException;
+import gestion.ui.ActionDialogs;
 import java.awt.GridLayout;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -81,7 +83,9 @@ public class ClientUI extends JPanel {
 
 		String[] columns = { "Nom", "Prénom", "Adresse", "Heures contrat", "Début contrat", "Fin contrat" };
 
-		tableModel = new DefaultTableModel(columns, 0);
+		tableModel = new DefaultTableModel(columns, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
 		clientTable = new JTable(tableModel);
 
 		JScrollPane scrollPane = new JScrollPane(clientTable);
@@ -95,10 +99,10 @@ public class ClientUI extends JPanel {
 			String endDate = "";
 
 			if (client.getContractStartDate() != null) {
-				startDate = client.getContractStartDate().toString();
+				startDate = FormatUtils.formatDate(client.getContractStartDate());
 			}
 			if (client.getContractEndDate() != null) {
-				endDate = client.getContractEndDate().toString();
+				endDate = FormatUtils.formatDate(client.getContractEndDate());
 			}
 
 			Object[] row = { client.getLastName(), client.getFirstName(), client.getAddress(),
@@ -148,7 +152,11 @@ public class ClientUI extends JPanel {
 			startDateField.setText("");
 			endDateField.setText("");
 
-		} catch (NumberFormatException | DateTimeParseException e) {
+        } catch (UncheckedIOException e) {
+            ActionDialogs.error(this, e);
+        } catch (IllegalArgumentException e) {
+            ActionDialogs.error(this, e);
+        } catch (DateTimeParseException e) {
 			JOptionPane.showMessageDialog(this, "Format invalide. Heures : 120 ou 120,5. Date : 05/03/2027.");
 		}
 	}
@@ -162,8 +170,10 @@ public class ClientUI extends JPanel {
 			return;
 		}
 
-		clients.removeClient(index);
-		refreshTable();
+        try {
+            clients.removeClient(clientTable.convertRowIndexToModel(index));
+            refreshTable();
+        } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); }
 	}
 
 	private void refreshTable() {

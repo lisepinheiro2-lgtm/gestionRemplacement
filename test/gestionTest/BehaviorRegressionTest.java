@@ -78,7 +78,7 @@ class BehaviorRegressionTest {
         clients = new ClientService(new ClientCsvRepository(directory));
         planning = new PlanningService(personnel, clients, new InterventionCsvRepository(directory));
         replacements = new ReplacementService(new ReplacementCsvRepository(directory));
-        absences = new AbsenceService(personnel, replacements, new AbsenceCsvRepository(directory));
+        absences = new AbsenceService(personnel, replacements, planning, new AbsenceCsvRepository(directory));
         hours = new WorkHoursService(planning, Clock.fixed(Instant.parse("2026-10-12T12:00:00Z"), ZoneOffset.UTC));
         controller = new PersonnelController(personnel, absences, hours);
     }
@@ -89,6 +89,8 @@ class BehaviorRegressionTest {
     }
 
     Client client() {
+        Client existing = clients.findClient("Élise", "Client");
+        if (existing != null) return existing;
         clients.addClient("Élise", "Client", "Adresse de test", 20, LocalDate.of(2026, 1, 1), null);
         return clients.getClients().getFirst();
     }
@@ -192,7 +194,7 @@ class BehaviorRegressionTest {
     void absencesIncludeBothBoundaryDaysAndReloadIdentity() throws IOException {
         Employee employee = employee("A", "Nom", 35);
         absence(employee, LocalDate.of(2026, 10, 12), LocalDate.of(2026, 10, 14));
-        AbsenceService loaded = new AbsenceService(personnel, replacements, new AbsenceCsvRepository(directory));
+        AbsenceService loaded = new AbsenceService(personnel, replacements, planning, new AbsenceCsvRepository(directory));
         assertSame(employee, loaded.getAbsences().getFirst().getEmployee());
         assertEquals(EmployeeStatus.VACATION, loaded.getStatusAt(employee, LocalDate.of(2026, 10, 12)));
         assertEquals(EmployeeStatus.VACATION, loaded.getStatusAt(employee, LocalDate.of(2026, 10, 14)));
@@ -261,7 +263,7 @@ class BehaviorRegressionTest {
         Path path = directory.resolve("employee_absences.csv");
         Files.writeString(path, "ligne invalide\n");
         assertThrows(IOException.class,
-                () -> new AbsenceService(personnel, replacements, new AbsenceCsvRepository(directory)));
+                () -> new AbsenceService(personnel, replacements, planning, new AbsenceCsvRepository(directory)));
         assertEquals("ligne invalide\n", Files.readString(path));
     }
 
