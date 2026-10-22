@@ -29,251 +29,293 @@ import gestion.util.FormatUtils;
 
 public class ReplacementUI extends JPanel {
 
-    private ReplacementService replacementList;
-    private PersonnelService personnel;
-    private PlanningService planning;
+	private ReplacementService replacementList;
+	private PersonnelService personnel;
+	private PlanningService planning;
 
-    private JComboBox<Employee> employeeToReplaceBox;
-    private JComboBox<Employee> replacementEmployeeBox;
+	private JComboBox<Employee> employeeToReplaceBox;
+	private JComboBox<Employee> replacementEmployeeBox;
 
-    private JCheckBox assignAllCheckBox;
+	private JCheckBox assignAllCheckBox;
 
-    private JTextField startDateField;
-    private JTextField startTimeField;
-    private JTextField endTimeField;
-    private JTextField endDateField;
+	private JTextField startDateField;
+	private JTextField startTimeField;
+	private JTextField endTimeField;
+	private JTextField endDateField;
 
-    private DefaultTableModel tableModel;
-    private JTable replacementTable;
+	private DefaultTableModel tableModel;
+	private JTable replacementTable;
 
-    public ReplacementUI(ReplacementService replacementList, PersonnelService personnel, PlanningService planning) {
+	public ReplacementUI(ReplacementService replacementList, PersonnelService personnel, PlanningService planning) {
 
-        this.replacementList = replacementList;
-        this.personnel = personnel;
-        this.planning = planning;
-        replacementList.bindPersonnel(personnel);
+		this.replacementList = replacementList;
+		this.personnel = personnel;
+		this.planning = planning;
 
-        setLayout(new BorderLayout());
+		replacementList.bindPersonnel(personnel);
+		setLayout(new BorderLayout());
 
-        createInputPanel();
-        createTable();
-        loadTable();
-    }
+		createInputPanel();
+		createTable();
+		loadTable();
+	}
 
-    private void createInputPanel() {
+	private void createInputPanel() {
 
-        JPanel inputPanel = new JPanel(new GridLayout(9, 2));
+		JPanel inputPanel = new JPanel(new GridLayout(9, 2));
+		employeeToReplaceBox = new JComboBox<>();
+		replacementEmployeeBox = new JComboBox<>();
+		startDateField = new JTextField();
+		startTimeField = new JTextField();
+		endDateField = new JTextField();
+		endTimeField = new JTextField();
 
-        employeeToReplaceBox = new JComboBox<>();
-        replacementEmployeeBox = new JComboBox<>();
+		UIUtils.addPlaceholder(startDateField, "jj/MM/aaaa");
+		UIUtils.addPlaceholder(startTimeField, "__ h __");
+		UIUtils.addPlaceholder(endDateField, "jj/MM/aaaa");
+		UIUtils.addPlaceholder(endTimeField, "__ h __");
 
-        startDateField = new JTextField();
-        startTimeField = new JTextField();
-        endDateField = new JTextField();
-        endTimeField = new JTextField();
+		JButton addButton = new JButton("Ajouter un remplacement");
+		JButton removeButton = new JButton("Supprimer le remplacement");
 
-        UIUtils.addPlaceholder(startDateField, "jj/MM/aaaa");
-        UIUtils.addPlaceholder(startTimeField, "__ h __");
-        UIUtils.addPlaceholder(endDateField, "jj/MM/aaaa");
-        UIUtils.addPlaceholder(endTimeField, "__ h __");
+		for (Employee employee : personnel.getEmployees()) {
+			employeeToReplaceBox.addItem(employee);
+			replacementEmployeeBox.addItem(employee);
+		}
 
-        JButton addButton = new JButton("Ajouter un remplacement");
-        JButton removeButton = new JButton("Supprimer le remplacement");
+		inputPanel.add(new JLabel("Employé à remplacer : "));
+		inputPanel.add(employeeToReplaceBox);
+		inputPanel.add(new JLabel("Employé remplaçant : "));
+		inputPanel.add(replacementEmployeeBox);
+		inputPanel.add(new JLabel("Date de début : "));
+		inputPanel.add(startDateField);
+		inputPanel.add(new JLabel("Heure de début : "));
+		inputPanel.add(startTimeField);
+		inputPanel.add(new JLabel("Date de fin : "));
+		inputPanel.add(endDateField);
+		inputPanel.add(new JLabel("Heure de fin : "));
+		inputPanel.add(endTimeField);
+		inputPanel.add(removeButton);
+		inputPanel.add(addButton);
 
-        for (Employee employee : personnel.getEmployees()) {
+		assignAllCheckBox = new JCheckBox("Attribuer toutes les interventions au remplaçant");
 
-            employeeToReplaceBox.addItem(employee);
-            replacementEmployeeBox.addItem(employee);
-        }
+		inputPanel.add(assignAllCheckBox);
+		inputPanel.add(new JLabel(""));
+		JButton assignGroup = new JButton("Attribuer les interventions non attribuées de la demande");
 
-        inputPanel.add(new JLabel("Employé à remplacer : "));
-        inputPanel.add(employeeToReplaceBox);
-        inputPanel.add(new JLabel("Employé remplaçant : "));
-        inputPanel.add(replacementEmployeeBox);
-        inputPanel.add(new JLabel("Date de début : "));
-        inputPanel.add(startDateField);
-        inputPanel.add(new JLabel("Heure de début : "));
-        inputPanel.add(startTimeField);
-        inputPanel.add(new JLabel("Date de fin : "));
-        inputPanel.add(endDateField);
-        inputPanel.add(new JLabel("Heure de fin : "));
-        inputPanel.add(endTimeField);
+		assignGroup.addActionListener(event -> assignSelectedGroup());
 
-        inputPanel.add(removeButton);
-        inputPanel.add(addButton);
+		inputPanel.add(assignGroup);
+		inputPanel.add(new JLabel("Sinon : attribution individuelle depuis Planning"));
 
-        assignAllCheckBox = new JCheckBox("Attribuer toutes les interventions au remplaçant");
+		addButton.addActionListener(event -> addReplacement());
+		removeButton.addActionListener(event -> removeReplacement());
 
-        inputPanel.add(assignAllCheckBox);
-        inputPanel.add(new JLabel(""));
-        JButton assignGroup = new JButton("Attribuer les interventions non attribuées de la demande");
-        assignGroup.addActionListener(event -> assignSelectedGroup());
-        inputPanel.add(assignGroup);
-        inputPanel.add(new JLabel("Sinon : attribution individuelle depuis Planning"));
+		add(inputPanel, BorderLayout.NORTH);
+	}
 
-        addButton.addActionListener(event -> addReplacement());
-        removeButton.addActionListener(event -> removeReplacement());
+	private void addReplacement() {
 
-        add(inputPanel, BorderLayout.NORTH);
-    }
+		String startDate = startDateField.getText();
+		String endDate = endDateField.getText();
+		String startTime = startTimeField.getText();
+		String endTime = endTimeField.getText();
 
-    private void addReplacement() {
+		if (startDate.isBlank() || startTime.isBlank() || endTime.isBlank()) {
+			JOptionPane.showMessageDialog(this, "Veuillez renseigner la date, l'heure de début et l'heure de fin.");
+			return;
+		}
 
-        String startDate = startDateField.getText();
-        String endDate = endDateField.getText();
-        String startTime = startTimeField.getText();
-        String endTime = endTimeField.getText();
+		LocalDate parsedStartDate;
+		LocalDate parsedEndDate;
+		LocalTime parsedStartTime;
+		LocalTime parsedEndTime;
 
-        if (startDate.isBlank() || startTime.isBlank() || endTime.isBlank()) {
-            JOptionPane.showMessageDialog(this, "Veuillez renseigner la date, l'heure de début et l'heure de fin.");
-            return;
-        }
+		try {
 
-        LocalDate parsedStartDate;
-        LocalDate parsedEndDate;
-        LocalTime parsedStartTime;
-        LocalTime parsedEndTime;
+			parsedStartTime = FormatUtils.parseTime(startTime);
+			parsedEndTime = FormatUtils.parseTime(endTime);
+			parsedStartDate = FormatUtils.parseDate(startDate);
 
-        try {
+			if (endDate.isBlank() || endDate.equals("jj/MM/aaaa")) {
 
-            parsedStartTime = FormatUtils.parseTime(startTime);
-            parsedEndTime = FormatUtils.parseTime(endTime);
-            parsedStartDate = FormatUtils.parseDate(startDate);
+				if (!parsedEndTime.isAfter(parsedStartTime)) {
+					JOptionPane.showMessageDialog(this,
+							"La date de fin est obligatoire lorsque le remplacement se termine le lendemain ou plus tard.");
+					return;
+				}
 
-            if (endDate.isBlank() || endDate.equals("jj/MM/aaaa")) {
+				parsedEndDate = parsedStartDate;
+			} else {
+				parsedEndDate = FormatUtils.parseDate(endDate);
+			}
 
-                if (!parsedEndTime.isAfter(parsedStartTime)) {
-                    JOptionPane.showMessageDialog(this,
-                            "La date de fin est obligatoire lorsque le remplacement se termine le lendemain ou plus tard.");
-                    return;
-                }
+		} catch (DateTimeParseException e) {
+			JOptionPane.showMessageDialog(this,
+					"Format invalide. Date : 05/03/27 ou 05/03/2027. Heure : 7h, 07h, 7h30 ou 18h30.");
+			return;
+		}
 
-                parsedEndDate = parsedStartDate;
+		LocalDateTime start = LocalDateTime.of(parsedStartDate, parsedStartTime);
+		LocalDateTime end = LocalDateTime.of(parsedEndDate, parsedEndTime);
 
-            } else {
-                parsedEndDate = FormatUtils.parseDate(endDate);
-            }
+		if (!end.isAfter(start)) {
+			JOptionPane.showMessageDialog(this, "La fin du remplacement doit être postérieure au début.");
+			return;
+		}
 
-        } catch (DateTimeParseException e) {
+		startDate = parsedStartDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+		startTime = parsedStartTime.format(DateTimeFormatter.ofPattern("HH'h'mm"));
+		endDate = parsedEndDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+		endTime = parsedEndTime.format(DateTimeFormatter.ofPattern("HH'h'mm"));
 
-            JOptionPane.showMessageDialog(this,
-                    "Format invalide. Date : 05/03/27 ou 05/03/2027. Heure : 7h, 07h, 7h30 ou 18h30.");
-            return;
-        }
+		Employee employeeToReplace = (Employee) employeeToReplaceBox.getSelectedItem();
+		Employee replacementEmployee = assignAllCheckBox.isSelected()
+				? (Employee) replacementEmployeeBox.getSelectedItem()
+				: null;
 
-        LocalDateTime start = LocalDateTime.of(parsedStartDate, parsedStartTime);
-        LocalDateTime end = LocalDateTime.of(parsedEndDate, parsedEndTime);
+		try {
+			personnel.requireKnown(employeeToReplace);
 
-        if (!end.isAfter(start)) {
-            JOptionPane.showMessageDialog(this, "La fin du remplacement doit être postérieure au début.");
-            return;
-        }
+			if (assignAllCheckBox.isSelected())
+				personnel.requireKnown(replacementEmployee);
 
-        startDate = parsedStartDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        startTime = parsedStartTime.format(DateTimeFormatter.ofPattern("HH'h'mm"));
-        endDate = parsedEndDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        endTime = parsedEndTime.format(DateTimeFormatter.ofPattern("HH'h'mm"));
+			if (start.isBefore(LocalDateTime.now()) && !ActionDialogs.confirm(this,
+					"Cette demande commence dans le passé et peut modifier des attributions passées. Voulez-vous continuer ?"))
+				return;
 
-        Employee employeeToReplace = (Employee) employeeToReplaceBox.getSelectedItem();
-        Employee replacementEmployee = assignAllCheckBox.isSelected() ? (Employee) replacementEmployeeBox.getSelectedItem() : null;
-        try {
-            personnel.requireKnown(employeeToReplace);
-            if (assignAllCheckBox.isSelected()) personnel.requireKnown(replacementEmployee);
-            if (start.isBefore(LocalDateTime.now()) && !ActionDialogs.confirm(this,
-                    "Cette demande commence dans le passé et peut modifier des attributions passées. Voulez-vous continuer ?")) return;
-            replacementList.createWithPlanning(planning, employeeToReplace, replacementEmployee, startDate, startTime, endDate, endTime);
-        } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); return; }
+			replacementList.createWithPlanning(planning, employeeToReplace, replacementEmployee, startDate, startTime,
+					endDate, endTime);
 
-        refreshTable();
+		} catch (UncheckedIOException | IllegalArgumentException e) {
+			ActionDialogs.error(this, e);
+			return;
+		}
 
-        startDateField.setText("");
-        endDateField.setText("");
-        startTimeField.setText("");
-        endTimeField.setText("");
-    }
+		refreshTable();
 
-    private void removeReplacement() {
+		startDateField.setText("");
+		endDateField.setText("");
+		startTimeField.setText("");
+		endTimeField.setText("");
+	}
 
-        int index = replacementTable.getSelectedRow();
+	private void removeReplacement() {
+		int index = replacementTable.getSelectedRow();
 
-        if (index == -1) {
-            JOptionPane.showMessageDialog(this, "Veuillez sélectionner un remplacement.");
-            return;
-        }
+		if (index == -1) {
+			JOptionPane.showMessageDialog(this, "Veuillez sélectionner un remplacement.");
+			return;
+		}
 
-        try {
-            replacementList.removeReplacement(replacementTable.convertRowIndexToModel(index));
-            refreshTable();
-        } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); }
-    }
+		try {
+			replacementList.removeReplacement(replacementTable.convertRowIndexToModel(index));
+			refreshTable();
+		} catch (UncheckedIOException | IllegalArgumentException e) {
+			ActionDialogs.error(this, e);
+		}
+	}
 
-    private void createTable() {
+	private void createTable() {
+		String[] columns = { "Employé à remplacer", "Heures contrat", "Remplaçant", "Heures contrat", "Date début",
+				"Début", "Date fin", "Fin" };
 
-        String[] columns = { "Employé à remplacer", "Heures contrat", "Remplaçant", "Heures contrat", "Date début",
-                "Début", "Date fin", "Fin" };
+		tableModel = new DefaultTableModel(columns, 0) {
+			@Override
+			public boolean isCellEditable(int row, int column) {
+				return false;
+			}
+		};
+		replacementTable = new JTable(tableModel);
 
-        tableModel = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
-        };
-        replacementTable = new JTable(tableModel);
+		JScrollPane scrollPane = new JScrollPane(replacementTable);
+		add(scrollPane, BorderLayout.CENTER);
+	}
 
-        JScrollPane scrollPane = new JScrollPane(replacementTable);
-        add(scrollPane, BorderLayout.CENTER);
-    }
+	private void loadTable() {
 
-    private void loadTable() {
+		for (Replacement replacement : replacementList.getReplacements()) {
 
-        for (Replacement replacement : replacementList.getReplacements()) {
+			boolean linkedToAbsence = replacement.getAbsenceId() != null;
 
-            Employee employeeToReplace = personnel.findEmployee(replacement.getEmployeeToReplace());
-            Employee replacementEmployee = personnel.findEmployee(replacement.getReplacementEmployee());
-            String replacementText = replacement.getAbsenceId() != null ? "Non attribué" : "Attribution individuelle";
-            String replacementHours = "-";
+			if (linkedToAbsence && planning.getInterventionsByAbsenceId(replacement.getAbsenceId()).isEmpty()) {
+				continue;
+			}
 
-            if (replacementEmployee != null) {
-                replacementText = replacementEmployee.toString();
-                replacementHours = FormatUtils.formatContractHours(replacementEmployee.getContractHours());
-            }
+			Employee employeeToReplace = personnel.findEmployee(replacement.getEmployeeToReplace());
+			Employee replacementEmployee = personnel.findEmployee(replacement.getReplacementEmployee());
+			String replacementText = linkedToAbsence ? "Non attribué" : "Attribution individuelle";
+			String replacementHours = "-";
 
-            if (replacement.getAbsenceId() != null) {
-                var group = planning.getInterventionsByAbsenceId(replacement.getAbsenceId());
-                long assigned = group.stream().filter(i -> i.getEmployee() != null).count();
-                replacementText = group.isEmpty() ? "Ancienne demande (sans liens)" : assigned + "/" + group.size() + " attribuées (voir Planning)";
-            }
-            Object[] row = { replacement.getEmployeeToReplace(),
-                    employeeToReplace == null ? "Référence manquante" : FormatUtils.formatContractHours(employeeToReplace.getContractHours()), replacementText,
-                    replacementHours, replacement.getStartDate(), replacement.getStartTime(), replacement.getEndDate(),
-                    replacement.getEndTime() };
+			if (replacementEmployee != null) {
+				replacementText = replacementEmployee.toString();
+				replacementHours = FormatUtils.formatContractHours(replacementEmployee.getContractHours());
+			}
 
-            tableModel.addRow(row);
-        }
-    }
+			if (linkedToAbsence) {
+				var group = planning.getInterventionsByAbsenceId(replacement.getAbsenceId());
+				long assigned = group.stream().filter(i -> i.getEmployee() != null).count();
 
-    private void refreshEmployeeChoices() {
-        Employee original = (Employee) employeeToReplaceBox.getSelectedItem();
-        Employee substitute = (Employee) replacementEmployeeBox.getSelectedItem();
-        employeeToReplaceBox.removeAllItems(); replacementEmployeeBox.removeAllItems();
-        for (Employee employee : personnel.getEmployees()) {
-            employeeToReplaceBox.addItem(employee); replacementEmployeeBox.addItem(employee);
-        }
-        if (personnel.getEmployees().contains(original)) employeeToReplaceBox.setSelectedItem(original);
-        if (personnel.getEmployees().contains(substitute)) replacementEmployeeBox.setSelectedItem(substitute);
-    }
-    private void assignSelectedGroup() {
-        int row = replacementTable.getSelectedRow();
-        try {
-            if (row < 0) throw new IllegalArgumentException("Sélectionnez une demande de remplacement.");
-            Employee employee = (Employee) replacementEmployeeBox.getSelectedItem();
-            personnel.requireKnown(employee);
-            replacementList.assignUnassignedGroup(planning, replacementTable.convertRowIndexToModel(row), employee);
-            refreshTable();
-        } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); }
-    }
+				replacementText = group.isEmpty() ? "Ancienne demande."
+						: assigned + "/" + group.size() + " attribuées.";
+			}
 
-    public void refreshTable() {
+			String displayedEndDate = linkedToAbsence
+					? FormatUtils.formatDate(FormatUtils.parseDate(replacement.getEndDate()).minusDays(1))
+					: replacement.getEndDate();
+			String displayedStartTime = linkedToAbsence ? "—" : replacement.getStartTime();
+			String displayedEndTime = linkedToAbsence ? "—" : replacement.getEndTime();
+			Object[] row = { replacement.getEmployeeToReplace(),
 
-        refreshEmployeeChoices();
-        tableModel.setRowCount(0);
-        loadTable();
-    }
+					employeeToReplace == null ? "Référence manquante"
+							: FormatUtils.formatContractHours(employeeToReplace.getContractHours()),
+					replacementText, replacementHours, replacement.getStartDate(), displayedStartTime, displayedEndDate,
+					displayedEndTime };
+
+			tableModel.addRow(row);
+		}
+	}
+
+	private void refreshEmployeeChoices() {
+		Employee original = (Employee) employeeToReplaceBox.getSelectedItem();
+		Employee substitute = (Employee) replacementEmployeeBox.getSelectedItem();
+		employeeToReplaceBox.removeAllItems();
+		replacementEmployeeBox.removeAllItems();
+
+		for (Employee employee : personnel.getEmployees()) {
+			employeeToReplaceBox.addItem(employee);
+			replacementEmployeeBox.addItem(employee);
+		}
+
+		if (personnel.getEmployees().contains(original))
+			employeeToReplaceBox.setSelectedItem(original);
+		if (personnel.getEmployees().contains(substitute))
+			replacementEmployeeBox.setSelectedItem(substitute);
+	}
+
+	private void assignSelectedGroup() {
+		int row = replacementTable.getSelectedRow();
+
+		try {
+
+			if (row < 0)
+				throw new IllegalArgumentException("Sélectionnez une demande de remplacement.");
+			Employee employee = (Employee) replacementEmployeeBox.getSelectedItem();
+			personnel.requireKnown(employee);
+			replacementList.assignUnassignedGroup(planning, replacementTable.convertRowIndexToModel(row), employee);
+
+			refreshTable();
+
+		} catch (UncheckedIOException | IllegalArgumentException e) {
+			ActionDialogs.error(this, e);
+		}
+	}
+
+	public void refreshTable() {
+
+		refreshEmployeeChoices();
+		tableModel.setRowCount(0);
+		loadTable();
+	}
 }

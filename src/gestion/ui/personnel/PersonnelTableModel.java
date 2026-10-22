@@ -8,6 +8,7 @@ import gestion.model.EmployeeSummary;
 import gestion.util.FormatUtils;
 
 public final class PersonnelTableModel extends AbstractTableModel {
+
 	private static final String[] COLUMNS = { "Nom", "Prénom", "Heures prévues au contrat", "Statut",
 			"Heures attribuées", "Heures restantes" };
 	private List<EmployeeSummary> rows = List.of();
@@ -54,6 +55,7 @@ public final class PersonnelTableModel extends AbstractTableModel {
 	@Override
 	public Object getValueAt(int row, int column) {
 		EmployeeSummary values = rows.get(row);
+
 		return switch (column) {
 		case 0 -> values.employee().getLastName();
 		case 1 -> values.employee().getFirstName();
@@ -67,8 +69,10 @@ public final class PersonnelTableModel extends AbstractTableModel {
 
 	@Override
 	public void setValueAt(Object value, int row, int column) {
+
 		if (!isCellEditable(row, column))
 			return;
+
 		Employee employee = rows.get(row).employee();
 		String text = value == null ? "" : value.toString();
 		editHandler.edit(employee, column == 1 ? text : employee.getFirstName(),

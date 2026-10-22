@@ -27,6 +27,7 @@ import gestion.ui.ActionDialogs;
 import java.util.List;
 
 public final class InterventionCreationDialogs {
+
 	private final Component parent;
 	private final PlanningService planning;
 	private final PersonnelService personnel;
@@ -83,68 +84,69 @@ public final class InterventionCreationDialogs {
 		formPanel.add(endDateField);
 
 		while (true) {
-        int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention récurrente",
-				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+			int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention récurrente",
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
-		if (result != JOptionPane.OK_OPTION) {
-			return;
+			if (result != JOptionPane.OK_OPTION) {
+				return;
+			}
+
+			try {
+
+				Client selectedClient = (Client) clientBox.getSelectedItem();
+				Employee selectedEmployee = null;
+				Object selectedItem = employeeBox.getSelectedItem();
+
+				if (selectedItem instanceof Employee) {
+					selectedEmployee = (Employee) selectedItem;
+				}
+
+				DayOfWeek dayOfWeek = DayOfWeek.of(dayBox.getSelectedIndex() + 1);
+				LocalTime startTime = FormatUtils.parseTime(startTimeField.getText());
+				LocalTime endTime = FormatUtils.parseTime(endTimeField.getText());
+				LocalDate startDate = FormatUtils.parseDate(startDateField.getText());
+				LocalDate endDate = FormatUtils.parseDate(endDateField.getText());
+
+				if (!endDate.isAfter(startDate) && !endDate.equals(startDate)) {
+					JOptionPane.showMessageDialog(parent, "La date de fin doit être postérieure à la date de début.");
+					continue;
+				}
+
+				if (!endTime.isAfter(startTime)) {
+					JOptionPane.showMessageDialog(parent, "L'heure de fin doit être postérieure à l'heure de début.");
+					continue;
+				}
+
+				RecurringIntervention recurring = new RecurringIntervention(selectedClient, selectedEmployee, dayOfWeek,
+						startTime, endTime, startDate, endDate);
+				var preview = planning.previewRecurringInterventions(recurring);
+				if (!ActionDialogs.confirmSaving(parent, planning, preview, null, false))
+					return;
+				boolean generated = recurringInterventionList.createWithPlanning(planning, recurring);
+
+				if (!generated) {
+					JOptionPane.showMessageDialog(parent, "Impossible de créer cette récurrence : "
+							+ "l'intervenant est déjà occupé " + "sur au moins une des interventions.");
+					continue;
+				}
+
+				onChange.run();
+				return;
+
+			} catch (DateTimeParseException e) {
+				JOptionPane.showMessageDialog(parent,
+						"Format invalide.\n" + "Date : 05/03/2027\n" + "Heure : 8h, 8h30 ou 14h15");
+			} catch (UncheckedIOException | IllegalArgumentException e) {
+				ActionDialogs.error(parent, e);
+			}
 		}
-
-		try {
-
-			Client selectedClient = (Client) clientBox.getSelectedItem();
-			Employee selectedEmployee = null;
-			Object selectedItem = employeeBox.getSelectedItem();
-
-			if (selectedItem instanceof Employee) {
-				selectedEmployee = (Employee) selectedItem;
-			}
-
-			DayOfWeek dayOfWeek = DayOfWeek.of(dayBox.getSelectedIndex() + 1);
-			LocalTime startTime = FormatUtils.parseTime(startTimeField.getText());
-			LocalTime endTime = FormatUtils.parseTime(endTimeField.getText());
-			LocalDate startDate = FormatUtils.parseDate(startDateField.getText());
-			LocalDate endDate = FormatUtils.parseDate(endDateField.getText());
-
-			if (!endDate.isAfter(startDate) && !endDate.equals(startDate)) {
-				JOptionPane.showMessageDialog(parent, "La date de fin doit être postérieure à la date de début.");
-				continue;
-			}
-
-			if (!endTime.isAfter(startTime)) {
-				JOptionPane.showMessageDialog(parent, "L'heure de fin doit être postérieure à l'heure de début.");
-				continue;
-			}
-			RecurringIntervention recurring = new RecurringIntervention(selectedClient, selectedEmployee, dayOfWeek,
-					startTime, endTime, startDate, endDate);
-			var preview = planning.previewRecurringInterventions(recurring);
-            if (!ActionDialogs.confirmSaving(parent, planning, preview, null, false)) return;
-            boolean generated = recurringInterventionList.createWithPlanning(planning, recurring);
-
-			if (!generated) {
-				JOptionPane.showMessageDialog(parent, "Impossible de créer cette récurrence : "
-						+ "l'intervenant est déjà occupé " + "sur au moins une des interventions.");
-				continue;
-			}
-
-			onChange.run();
-            return;
-
-		} catch (DateTimeParseException e) {
-			JOptionPane.showMessageDialog(parent,
-					"Format invalide.\n" + "Date : 05/03/2027\n" + "Heure : 8h, 8h30 ou 14h15");
-        } catch (UncheckedIOException | IllegalArgumentException e) {
-            ActionDialogs.error(parent, e);
-        }
-	    }
-    }
+	}
 
 	public void openAddIntervention() {
 		openAddIntervention(null, null);
 	}
 
 	public void openAddIntervention(LocalDate initialDate, LocalTime initialTime) {
-
 		JPanel formPanel = new JPanel(new GridLayout(6, 2));
 		JComboBox<Client> clientBox = new JComboBox<>();
 
@@ -187,65 +189,65 @@ public final class InterventionCreationDialogs {
 		formPanel.add(endTimeField);
 
 		while (true) {
-        int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention",
-				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+			int result = JOptionPane.showConfirmDialog(parent, formPanel, "Ajouter une intervention",
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
-		if (result != JOptionPane.OK_OPTION) {
-			return;
-		}
-
-		Client selectedClient = (Client) clientBox.getSelectedItem();
-		Employee selectedEmployee = null;
-		Object selectedItem = employeeBox.getSelectedItem();
-
-		if (selectedItem instanceof Employee) {
-			selectedEmployee = (Employee) selectedItem;
-		}
-
-		String startDateText = startDateField.getText();
-		String startTimeText = startTimeField.getText();
-		String endDateText = endDateField.getText();
-		String endTimeText = endTimeField.getText();
-
-		try {
-
-			LocalDate startDate = FormatUtils.parseDate(startDateText);
-			LocalDate endDate = FormatUtils.parseDate(endDateText);
-			LocalTime startTime = FormatUtils.parseTime(startTimeText);
-			LocalTime endTime = FormatUtils.parseTime(endTimeText);
-
-			LocalDateTime start = LocalDateTime.of(startDate, startTime);
-			LocalDateTime end = LocalDateTime.of(endDate, endTime);
-
-			if (!end.isAfter(start)) {
-				JOptionPane.showMessageDialog(parent, "La fin de l'intervention doit être postérieure au début.");
-				continue;
+			if (result != JOptionPane.OK_OPTION) {
+				return;
 			}
 
-			Intervention intervention = new Intervention(selectedClient, selectedEmployee, startDate, startTime,
-					endDate, endTime);
+			Client selectedClient = (Client) clientBox.getSelectedItem();
+			Employee selectedEmployee = null;
+			Object selectedItem = employeeBox.getSelectedItem();
 
-			if (selectedEmployee != null && planning.hasOverlap(selectedEmployee, intervention)) {
+			if (selectedItem instanceof Employee) {
+				selectedEmployee = (Employee) selectedItem;
+			}
+
+			String startDateText = startDateField.getText();
+			String startTimeText = startTimeField.getText();
+			String endDateText = endDateField.getText();
+			String endTimeText = endTimeField.getText();
+
+			try {
+				LocalDate startDate = FormatUtils.parseDate(startDateText);
+				LocalDate endDate = FormatUtils.parseDate(endDateText);
+				LocalTime startTime = FormatUtils.parseTime(startTimeText);
+				LocalTime endTime = FormatUtils.parseTime(endTimeText);
+
+				LocalDateTime start = LocalDateTime.of(startDate, startTime);
+				LocalDateTime end = LocalDateTime.of(endDate, endTime);
+
+				if (!end.isAfter(start)) {
+					JOptionPane.showMessageDialog(parent, "La fin de l'intervention doit être postérieure au début.");
+					continue;
+				}
+
+				Intervention intervention = new Intervention(selectedClient, selectedEmployee, startDate, startTime,
+						endDate, endTime);
+
+				if (selectedEmployee != null && planning.hasOverlap(selectedEmployee, intervention)) {
+					JOptionPane.showMessageDialog(parent,
+							"Cet intervenant possède déjà une intervention sur cette plage horaire.");
+					continue;
+				}
+
+				if (!ActionDialogs.confirmSaving(parent, planning, List.of(intervention), null, false))
+					return;
+				planning.addIntervention(intervention);
+				onChange.run();
+				return;
+
+			} catch (DateTimeParseException e) {
 				JOptionPane.showMessageDialog(parent,
-						"Cet intervenant possède déjà une intervention sur cette plage horaire.");
-				continue;
+						"Format invalide. Date : 05/03/27 ou 05/03/2027. " + "Heure : 7h, 07h, 7h30 ou 18h30.");
+
+			} catch (UncheckedIOException e) {
+				ActionDialogs.error(parent, e);
+
+			} catch (IllegalArgumentException e) {
+				JOptionPane.showMessageDialog(parent, e.getMessage());
 			}
-
-            if (!ActionDialogs.confirmSaving(parent, planning, List.of(intervention), null, false)) return;
-            planning.addIntervention(intervention);
-			onChange.run();
-            return;
-
-		} catch (DateTimeParseException e) {
-			JOptionPane.showMessageDialog(parent,
-					"Format invalide. Date : 05/03/27 ou 05/03/2027. " + "Heure : 7h, 07h, 7h30 ou 18h30.");
-
-		} catch (UncheckedIOException e) {
-			ActionDialogs.error(parent, e);
-
-		} catch (IllegalArgumentException e) {
-			JOptionPane.showMessageDialog(parent, e.getMessage());
 		}
-	    }
-    }
+	}
 }

@@ -15,6 +15,7 @@ import gestion.model.HoursAlert;
 import gestion.model.Intervention;
 
 public final class WorkHoursService {
+
 	private final PlanningService planning;
 	private final Clock clock;
 
@@ -28,11 +29,9 @@ public final class WorkHoursService {
 	}
 
 	public double getTotalHours(Employee employee) {
-
 		double totalHours = 0;
 
 		for (Intervention intervention : planning.getInterventions()) {
-
 			Employee assignedEmployee = intervention.getEmployee();
 
 			if (assignedEmployee != null && assignedEmployee.getFirstName().equals(employee.getFirstName())
@@ -46,22 +45,19 @@ public final class WorkHoursService {
 	}
 
 	public double getWeeklyHours(Employee employee, LocalDate date) {
-
 		LocalDate monday = date.with(DayOfWeek.MONDAY);
 		LocalDateTime weekStart = monday.atStartOfDay();
 		LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
 		double totalHours = 0;
 
 		for (Intervention intervention : planning.getInterventions()) {
-
 			Employee assignedEmployee = intervention.getEmployee();
 			LocalDateTime interventionStart = LocalDateTime.of(intervention.getStartDate(),
 					intervention.getStartTime());
 			LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
 
-			if (assignedEmployee != null && assignedEmployee.getFirstName().equals(employee.getFirstName())
-					&& assignedEmployee.getLastName().equals(employee.getLastName())
-					&& interventionEnd.isAfter(weekStart) && interventionStart.isBefore(weekEnd)) {
+			if (assignedEmployee != null && assignedEmployee == employee && interventionEnd.isAfter(weekStart)
+					&& interventionStart.isBefore(weekEnd)) {
 
 				totalHours += getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
 			}
@@ -77,7 +73,6 @@ public final class WorkHoursService {
 		double totalHours = 0;
 
 		for (Intervention intervention : planning.getInterventions()) {
-
 			Employee assignedEmployee = intervention.getEmployee();
 			LocalDateTime interventionStart = LocalDateTime.of(intervention.getStartDate(),
 					intervention.getStartTime());
@@ -86,7 +81,6 @@ public final class WorkHoursService {
 			if (assignedEmployee != null && assignedEmployee.getFirstName().equals(employee.getFirstName())
 					&& assignedEmployee.getLastName().equals(employee.getLastName())
 					&& interventionEnd.isAfter(monthStart) && interventionStart.isBefore(monthEnd)) {
-
 				totalHours += getInterventionHoursInPeriod(intervention, monthStart, monthEnd);
 			}
 		}
@@ -101,7 +95,6 @@ public final class WorkHoursService {
 		double totalOverrun = 0.0;
 
 		while (weekMonday.atStartOfDay().isBefore(interventionEnd)) {
-
 			LocalDateTime weekStart = weekMonday.atStartOfDay();
 			LocalDateTime weekEnd = weekMonday.plusWeeks(1).atStartOfDay();
 			double currentHours = getWeeklyHours(employee, weekMonday);
@@ -119,7 +112,6 @@ public final class WorkHoursService {
 	}
 
 	public double getProjectedWeeklyOverrun(Employee employee, List<Intervention> interventionsToAssign) {
-
 		TreeSet<LocalDate> weeks = new TreeSet<>();
 
 		for (Intervention current : interventionsToAssign) {
@@ -137,12 +129,10 @@ public final class WorkHoursService {
 		for (LocalDate monday : weeks) {
 			LocalDateTime weekStart = monday.atStartOfDay();
 			LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
-
 			double projectedHours = getWeeklyHours(employee, monday);
 
 			for (Intervention current : interventionsToAssign) {
 				Employee assigned = current.getEmployee();
-
 				boolean alreadyAssigned = assigned != null && assigned.getFirstName().equals(employee.getFirstName())
 						&& assigned.getLastName().equals(employee.getLastName());
 
@@ -200,17 +190,12 @@ public final class WorkHoursService {
 
 		LocalDate periodStart = monthly ? date.withDayOfMonth(1)
 				: date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-
 		LocalDate periodEnd = monthly ? periodStart.plusMonths(1) : periodStart.plusWeeks(1);
-
 		long periodDays = ChronoUnit.DAYS.between(periodStart, periodEnd);
 		long remainingDays = ChronoUnit.DAYS.between(LocalDate.now(clock), periodEnd);
-
 		remainingDays = Math.max(0, Math.min(periodDays, remainingDays));
-
 		double remainingTimeRatio = remainingDays / (double) periodDays;
 		double remainingHoursRatio = (remainingMinutes / 60.0) / expectedHours;
-
 		boolean nearPeriodEnd = monthly ? remainingTimeRatio <= 0.20 : remainingDays <= 3;
 
 		if (remainingDays == 0 || (nearPeriodEnd && remainingHoursRatio > 0.25)) {

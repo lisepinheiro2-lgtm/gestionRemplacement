@@ -11,88 +11,90 @@ import java.time.temporal.ChronoField;
 
 public class FormatUtils {
 
-    public static LocalDate parseDate(String text) {
+	public static LocalDate parseDate(String text) {
 
-        DateTimeFormatter longYear = DateTimeFormatter.ofPattern("d/M/uuuu").withResolverStyle(ResolverStyle.STRICT);
-        DateTimeFormatter shortYear = new DateTimeFormatterBuilder().appendPattern("d/M/")
-                .appendValueReduced(ChronoField.YEAR, 2, 2, 2000).toFormatter().withResolverStyle(ResolverStyle.STRICT);
+		DateTimeFormatter longYear = DateTimeFormatter.ofPattern("d/M/uuuu").withResolverStyle(ResolverStyle.STRICT);
+		DateTimeFormatter shortYear = new DateTimeFormatterBuilder().appendPattern("d/M/")
+				.appendValueReduced(ChronoField.YEAR, 2, 2, 2000).toFormatter().withResolverStyle(ResolverStyle.STRICT);
 
-        try {
+		try {
+			return LocalDate.parse(text.trim(), longYear);
 
-            return LocalDate.parse(text.trim(), longYear);
+		} catch (DateTimeParseException e) {
+			return LocalDate.parse(text.trim(), shortYear);
+		}
+	}
 
-        } catch (DateTimeParseException e) {
+	public static String formatDay(DayOfWeek day) {
 
-            return LocalDate.parse(text.trim(), shortYear);
-        }
-    }
+		switch (day) {
+		case MONDAY:
+			return "Lundi";
+		case TUESDAY:
+			return "Mardi";
+		case WEDNESDAY:
+			return "Mercredi";
+		case THURSDAY:
+			return "Jeudi";
+		case FRIDAY:
+			return "Vendredi";
+		case SATURDAY:
+			return "Samedi";
+		case SUNDAY:
+			return "Dimanche";
+		}
 
-    public static String formatDay(DayOfWeek day) {
+		return "";
+	}
 
-        switch (day) {
-        case MONDAY:
-            return "Lundi";
-        case TUESDAY:
-            return "Mardi";
-        case WEDNESDAY:
-            return "Mercredi";
-        case THURSDAY:
-            return "Jeudi";
-        case FRIDAY:
-            return "Vendredi";
-        case SATURDAY:
-            return "Samedi";
-        case SUNDAY:
-            return "Dimanche";
-        }
+	public static String formatTime(LocalTime time) {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH'h'mm");
+		return time.format(formatter);
+	}
 
-        return "";
-    }
+	public static String formatDate(LocalDate date) {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/uuuu");
 
-    public static String formatTime(LocalTime time) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH'h'mm");
-        return time.format(formatter);
-    }
+		return date.format(formatter);
+	}
 
-    public static String formatDate(LocalDate date) {
+	public static LocalTime parseTime(String text) {
+		DateTimeFormatter formatter = new DateTimeFormatterBuilder().appendValue(ChronoField.HOUR_OF_DAY)
+				.appendLiteral('h').optionalStart().appendValue(ChronoField.MINUTE_OF_HOUR, 2).optionalEnd()
+				.parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0).toFormatter().withResolverStyle(ResolverStyle.STRICT);
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/uuuu");
+		return LocalTime.parse(text.trim().toLowerCase(), formatter);
+	}
 
-        return date.format(formatter);
-    }
+	public static double parseContractHours(String text) {
 
-    public static LocalTime parseTime(String text) {
+		if (text == null)
+			throw new NumberFormatException("Heures manquantes.");
+		text = text.trim().toLowerCase(java.util.Locale.ROOT).replace(',', '.');
+		double value;
 
-        DateTimeFormatter formatter = new DateTimeFormatterBuilder().appendValue(ChronoField.HOUR_OF_DAY)
-                .appendLiteral('h').optionalStart().appendValue(ChronoField.MINUTE_OF_HOUR, 2).optionalEnd()
-                .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0).toFormatter().withResolverStyle(ResolverStyle.STRICT);
+		if (text.matches("\\d+h(?:[0-5]?\\d)?")) {
+			String[] parts = text.split("h", -1);
+			value = Double.parseDouble(parts[0]) + (parts[1].isEmpty() ? 0 : Integer.parseInt(parts[1])) / 60.0;
+		} else if (text.matches("(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?")) {
+			value = Double.parseDouble(text);
+		} else
+			throw new NumberFormatException("Format d'heures invalide.");
 
-        return LocalTime.parse(text.trim().toLowerCase(), formatter);
-    }
+		if (!Double.isFinite(value) || value < 0)
+			throw new NumberFormatException("Heures finies et non négatives attendues.");
+		return value;
+	}
 
-    public static double parseContractHours(String text) {
-        if (text == null) throw new NumberFormatException("Heures manquantes.");
-        text = text.trim().toLowerCase(java.util.Locale.ROOT).replace(',', '.');
-        double value;
-        if (text.matches("\\d+h(?:[0-5]?\\d)?")) {
-            String[] parts = text.split("h", -1);
-            value = Double.parseDouble(parts[0]) + (parts[1].isEmpty() ? 0 : Integer.parseInt(parts[1])) / 60.0;
-        } else if (text.matches("(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?")) {
-            value = Double.parseDouble(text);
-        } else throw new NumberFormatException("Format d'heures invalide.");
-        if (!Double.isFinite(value) || value < 0) throw new NumberFormatException("Heures finies et non négatives attendues.");
-        return value;
-    }
+	public static String formatContractHours(double hours) {
 
-    public static String formatContractHours(double hours) {
+		int totalMinutes = (int) Math.round(hours * 60);
+		int absoluteMinutes = Math.abs(totalMinutes);
+		String sign = totalMinutes < 0 ? "-" : "";
+		int hour = absoluteMinutes / 60;
+		int minutes = absoluteMinutes % 60;
 
-        int totalMinutes = (int) Math.round(hours * 60);
-        int absoluteMinutes = Math.abs(totalMinutes);
-        String sign = totalMinutes < 0 ? "-" : "";
-        int hour = absoluteMinutes / 60;
-        int minutes = absoluteMinutes % 60;
-
-        return sign + String.format("%dh%02d", hour, minutes);
-    }
+		return sign + String.format("%dh%02d", hour, minutes);
+	}
 
 }

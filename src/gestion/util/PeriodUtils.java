@@ -26,6 +26,7 @@ public class PeriodUtils {
 		if (period1.end().isBefore(period2.start()) || period2.end().isBefore(period1.start())) {
 			return false;
 		}
+
 		return true;
 	}
 
@@ -34,6 +35,7 @@ public class PeriodUtils {
 		if (start == null || end == null || !end.isAfter(start)) {
 			return false;
 		}
+
 		return true;
 	}
 
@@ -46,6 +48,7 @@ public class PeriodUtils {
 		if (period1.start().isBefore(period2.end()) && period1.end().isAfter(period2.start())) {
 			return true;
 		}
+
 		return false;
 	}
 }

@@ -9,7 +9,6 @@ public record DateTimeRange(LocalDateTime start, LocalDateTime end) {
 	public DateTimeRange {
 
 		if (!PeriodUtils.isValidDateTimeRange(start, end)) {
-
 			throw new IllegalArgumentException("Période invalide");
 		}
 	}

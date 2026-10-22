@@ -7,68 +7,69 @@ import java.util.prefs.Preferences;
 import java.util.prefs.PreferencesFactory;
 
 public final class InMemoryPreferencesFactory implements PreferencesFactory {
-    private final Preferences root = new Node(null, "");
 
-    @Override
-    public Preferences systemRoot() {
-        return root;
-    }
+	private final Preferences root = new Node(null, "");
 
-    @Override
-    public Preferences userRoot() {
-        return root;
-    }
+	@Override
+	public Preferences systemRoot() {
+		return root;
+	}
 
-    private static final class Node extends AbstractPreferences {
-        private final Map<String, String> values = new HashMap<>();
-        private final Map<String, Node> children = new HashMap<>();
+	@Override
+	public Preferences userRoot() {
+		return root;
+	}
 
-        Node(AbstractPreferences parent, String name) {
-            super(parent, name);
-        }
+	private static final class Node extends AbstractPreferences {
+		private final Map<String, String> values = new HashMap<>();
+		private final Map<String, Node> children = new HashMap<>();
 
-        @Override
-        protected void putSpi(String key, String value) {
-            values.put(key, value);
-        }
+		Node(AbstractPreferences parent, String name) {
+			super(parent, name);
+		}
 
-        @Override
-        protected String getSpi(String key) {
-            return values.get(key);
-        }
+		@Override
+		protected void putSpi(String key, String value) {
+			values.put(key, value);
+		}
 
-        @Override
-        protected void removeSpi(String key) {
-            values.remove(key);
-        }
+		@Override
+		protected String getSpi(String key) {
+			return values.get(key);
+		}
 
-        @Override
-        protected void removeNodeSpi() {
-            values.clear();
-            children.clear();
-        }
+		@Override
+		protected void removeSpi(String key) {
+			values.remove(key);
+		}
 
-        @Override
-        protected String[] keysSpi() {
-            return values.keySet().toArray(String[]::new);
-        }
+		@Override
+		protected void removeNodeSpi() {
+			values.clear();
+			children.clear();
+		}
 
-        @Override
-        protected String[] childrenNamesSpi() {
-            return children.keySet().toArray(String[]::new);
-        }
+		@Override
+		protected String[] keysSpi() {
+			return values.keySet().toArray(String[]::new);
+		}
 
-        @Override
-        protected AbstractPreferences childSpi(String name) {
-            return children.computeIfAbsent(name, key -> new Node(this, key));
-        }
+		@Override
+		protected String[] childrenNamesSpi() {
+			return children.keySet().toArray(String[]::new);
+		}
 
-        @Override
-        protected void syncSpi() {
-        }
+		@Override
+		protected AbstractPreferences childSpi(String name) {
+			return children.computeIfAbsent(name, key -> new Node(this, key));
+		}
 
-        @Override
-        protected void flushSpi() {
-        }
-    }
+		@Override
+		protected void syncSpi() {
+		}
+
+		@Override
+		protected void flushSpi() {
+		}
+	}
 }

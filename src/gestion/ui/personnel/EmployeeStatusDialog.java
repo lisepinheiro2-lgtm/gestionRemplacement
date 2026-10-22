@@ -47,10 +47,13 @@ public final class EmployeeStatusDialog {
 		statusBox.addActionListener(event -> {
 			dates.setVisible(statusBox.getSelectedItem() != EmployeeStatus.OPERATIONAL);
 			Window dialog = SwingUtilities.getWindowAncestor(form);
+
 			if (dialog != null)
 				dialog.pack();
 		});
+
 		UIUtils.applyTheme(form);
+
 		while (true) {
 			JOptionPane pane = new JOptionPane(form, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
 			JDialog dialog = pane.createDialog(parent, "Statut de " + employee);
@@ -61,12 +64,15 @@ public final class EmployeeStatusDialog {
 			dialog.setVisible(true);
 			Object choice = pane.getValue();
 			dialog.dispose();
+
 			if (!Integer.valueOf(JOptionPane.OK_OPTION).equals(choice))
 				return false;
+
 			try {
 				controller.changeStatus(employee, (EmployeeStatus) statusBox.getSelectedItem(), start.getText(),
 						end.getText());
 				return true;
+
 			} catch (DateTimeParseException exception) {
 				JOptionPane.showMessageDialog(parent, "Saisis des dates valides au format jj/MM/aaaa.");
 			} catch (IllegalArgumentException exception) {

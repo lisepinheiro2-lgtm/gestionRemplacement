@@ -14,6 +14,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 public final class HomePanel extends JPanel implements AppThemeAware {
+
 	private final JLabel eyebrow = new JLabel("ESPACE DE TRAVAIL");
 	private final JLabel title = new JLabel("Votre espace de gestion");
 	private final JLabel subtitle = new JLabel("Retrouvez vos équipes, vos clients et vos interventions.");
@@ -44,6 +45,7 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 		introduction.add(heading, BorderLayout.CENTER);
 		introduction.add(date, BorderLayout.EAST);
 		cards.setOpaque(false);
+
 		destinations = new HomeCardButton[] {
 				card("Personnel", "Équipe, contrats et absences", NavigationIcon.Kind.PEOPLE, 0x5B94F3, employees),
 				card("Clients", "Coordonnées et contrats", NavigationIcon.Kind.CLIENTS, 0x2BAAA0, clients),
@@ -53,6 +55,7 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 				card("Interventions", "Ponctuelles et récurrentes", NavigationIcon.Kind.INTERVENTIONS, 0x5D9EBE,
 						interventions),
 				card("Archives", "Historique des interventions", NavigationIcon.Kind.ARCHIVE, 0x91A0B6, null) };
+
 		for (HomeCardButton button : destinations)
 			cards.add(button);
 		add(introduction, BorderLayout.NORTH);
@@ -62,6 +65,7 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 	private static HomeCardButton card(String title, String subtitle, NavigationIcon.Kind icon, int color,
 			Runnable action) {
 		HomeCardButton button = new HomeCardButton(title, subtitle, icon, new Color(color), action != null);
+
 		if (action != null)
 			button.addActionListener(event -> action.run());
 		return button;
@@ -75,6 +79,7 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 		Color muted = dark ? new Color(159, 174, 194) : new Color(102, 118, 139);
 		subtitle.setForeground(muted);
 		date.setForeground(muted);
+
 		for (HomeCardButton button : destinations)
 			button.applyAppTheme(dark);
 	}

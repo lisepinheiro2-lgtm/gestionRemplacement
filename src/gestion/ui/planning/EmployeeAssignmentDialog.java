@@ -26,136 +26,140 @@ import gestion.service.WorkHoursService;
 import gestion.util.FormatUtils;
 
 public final class EmployeeAssignmentDialog {
-    private final Component parent;
-    private final PlanningService planning;
-    private final WorkHoursService hours;
-    private final PersonnelService personnel;
-    private final RecurringInterventionService recurringInterventionList;
-    private final Runnable onChange;
 
-    public EmployeeAssignmentDialog(Component parent, PlanningService planning, PersonnelService personnel,
-            RecurringInterventionService recurringInterventionList, Runnable onChange) {
-        this.parent = parent;
-        this.planning = planning;
-        this.personnel = personnel;
-        this.hours = new WorkHoursService(planning);
-        this.recurringInterventionList = recurringInterventionList;
-        this.onChange = onChange;
-    }
+	private final Component parent;
+	private final PlanningService planning;
+	private final WorkHoursService hours;
+	private final PersonnelService personnel;
+	private final RecurringInterventionService recurringInterventionList;
+	private final Runnable onChange;
 
-    public void open(Intervention intervention) {
+	public EmployeeAssignmentDialog(Component parent, PlanningService planning, PersonnelService personnel,
+			RecurringInterventionService recurringInterventionList, Runnable onChange) {
+		this.parent = parent;
+		this.planning = planning;
+		this.personnel = personnel;
+		this.hours = new WorkHoursService(planning);
+		this.recurringInterventionList = recurringInterventionList;
+		this.onChange = onChange;
+	}
 
-        LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
+	public void open(Intervention intervention) {
+		LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
 
-        if (!interventionEnd.isAfter(LocalDateTime.now())) {
-            int confirmation = JOptionPane.showConfirmDialog(parent,
+		if (!interventionEnd.isAfter(LocalDateTime.now())) {
+			int confirmation = JOptionPane.showConfirmDialog(parent,
+					"Cette intervention a déjà eu lieu, êtes-vous sûr de vouloir modifier son attribution ?",
+					"Modifier une attribution passée", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 
-                    "Cette intervention a déjà eu lieu, êtes-vous sûr de vouloir modifier son attribution ?",
-                    "Modifier une attribution passée", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (confirmation != JOptionPane.YES_OPTION) {
+				return;
+			}
+		}
 
-            if (confirmation != JOptionPane.YES_OPTION) {
-                return;
-            }
-        }
+		JPanel employeesPanel = new JPanel();
+		employeesPanel.setLayout(new BoxLayout(employeesPanel, BoxLayout.Y_AXIS));
+		LocalDate monday = intervention.getStartDate().with(DayOfWeek.MONDAY);
+		LocalDateTime weekStart = monday.atStartOfDay();
+		LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
+		String recurringId = intervention.getRecurringId();
+		JCheckBox assignSeriesBox = new JCheckBox("Attribuer les occurrences à venir à cet employé");
 
-        JPanel employeesPanel = new JPanel();
-        employeesPanel.setLayout(new BoxLayout(employeesPanel, BoxLayout.Y_AXIS));
-        LocalDate monday = intervention.getStartDate().with(DayOfWeek.MONDAY);
-        LocalDateTime weekStart = monday.atStartOfDay();
-        LocalDateTime weekEnd = monday.plusWeeks(1).atStartOfDay();
-        String recurringId = intervention.getRecurringId();
-        JCheckBox assignSeriesBox = new JCheckBox("Attribuer les occurrences à venir à cet employé");
+		if (recurringId != null && !recurringId.isBlank()) {
+			employeesPanel.add(assignSeriesBox);
+		}
 
-        if (recurringId != null && !recurringId.isBlank()) {
-            employeesPanel.add(assignSeriesBox);
-        }
+		for (Employee employee : personnel.getEmployees()) {
+			double currentHours = hours.getWeeklyHours(employee, intervention.getStartDate());
+			double currentMonthlyHours = hours.getMonthlyHours(employee, intervention.getStartDate());
+			double estimatedMonthlyHours = (employee.getContractHours() * 52.0) / 12;
+			double remainingMonthlyHours = estimatedMonthlyHours - currentMonthlyHours;
+			double projectedHours = currentHours;
+			double remainingWeeklyHours = employee.getContractHours() - currentHours;
 
-        for (Employee employee : personnel.getEmployees()) {
+			if (intervention.getEmployee() != employee) {
+				projectedHours += WorkHoursService.getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
+			}
 
-            double currentHours = hours.getWeeklyHours(employee, intervention.getStartDate());
-            double currentMonthlyHours = hours.getMonthlyHours(employee, intervention.getStartDate());
-            double estimatedMonthlyHours = (employee.getContractHours() * 52.0) / 12;
-            double remainingMonthlyHours = estimatedMonthlyHours - currentMonthlyHours;
+			String text = "<html><div style='text-align: center;'>" + employee + "<br>Semaine : "
+					+ String.format("%.2f", remainingWeeklyHours) + "h restantes / "
+					+ String.format("%.2f", employee.getContractHours()) + " h prévues" + "<br>Mois : "
+					+ String.format("%.2f", remainingMonthlyHours) + " h restantes / "
+					+ String.format("%.2f", estimatedMonthlyHours) + " h estimées" + "</div></html>";
 
-            double projectedHours = currentHours;
-            double remainingWeeklyHours = employee.getContractHours() - currentHours;
+			double overtimeHours = hours.getProjectedWeeklyOverrun(employee, intervention);
 
-            if (intervention.getEmployee() != employee) {
-                projectedHours += WorkHoursService.getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
-            }
+			JButton employeeButton = new JButton(text);
+			employeeButton.setPreferredSize(new Dimension(550, 70));
+			employeeButton.setMaximumSize(new Dimension(550, 70));
 
-            String text = "<html><div style='text-align: center;'>" + employee + "<br>Semaine : "
-                    + String.format("%.2f", remainingWeeklyHours) + "h restantes / "
-                    + String.format("%.2f", employee.getContractHours()) + " h prévues" + "<br>Mois : "
-                    + String.format("%.2f", remainingMonthlyHours) + " h restantes / "
-                    + String.format("%.2f", estimatedMonthlyHours) + " h estimées" + "</div></html>";
+			if (planning.hasOverlap(employee, intervention)) {
+				employeeButton.setEnabled(false);
+			} else if (overtimeHours > 0) {
+				employeeButton.setBackground(Color.RED);
 
-            double overtimeHours = hours.getProjectedWeeklyOverrun(employee, intervention);
+			} else if (projectedHours < employee.getContractHours()) {
+				employeeButton.setBackground(Color.GREEN);
 
-            JButton employeeButton = new JButton(text);
-            employeeButton.setPreferredSize(new Dimension(550, 70));
-            employeeButton.setMaximumSize(new Dimension(550, 70));
+			} else if (projectedHours == employee.getContractHours()) {
+				employeeButton.setBackground(Color.YELLOW);
 
-            if (planning.hasOverlap(employee, intervention)) {
-                employeeButton.setEnabled(false);
-            } else if (overtimeHours > 0) {
-                employeeButton.setBackground(Color.RED);
+			} else {
+				employeeButton.setBackground(Color.RED);
+			}
 
-            } else if (projectedHours < employee.getContractHours()) {
-                employeeButton.setBackground(Color.GREEN);
+			assignSeriesBox.addActionListener(event -> employeeButton.setEnabled(!planning.hasOverlap(employee,
+					assignSeriesBox.isSelected()
+							? planning.getFutureInterventionsByRecurringId(recurringId, LocalDateTime.now())
+							: List.of(intervention))));
+			employeeButton.addActionListener(event -> {
 
-            } else if (projectedHours == employee.getContractHours()) {
-                employeeButton.setBackground(Color.YELLOW);
+				try {
+					List<Intervention> interventionsToAssign = assignSeriesBox.isSelected()
+							? planning.getFutureInterventionsByRecurringId(recurringId, LocalDateTime.now())
+							: List.of(intervention);
 
-            } else {
-                employeeButton.setBackground(Color.RED);
-            }
+					if (planning.hasOverlap(employee, interventionsToAssign)) {
+						JOptionPane.showMessageDialog(parent,
+								"Cet employé a un chevauchement sur au moins une des interventions.");
+						return;
+					}
 
-            assignSeriesBox.addActionListener(event -> employeeButton.setEnabled(!planning.hasOverlap(employee,
-                    assignSeriesBox.isSelected() ? planning.getFutureInterventionsByRecurringId(recurringId, LocalDateTime.now()) : List.of(intervention))));
-            employeeButton.addActionListener(event -> {
-                try {
+					double totalOverrun = hours.getProjectedWeeklyOverrun(employee, interventionsToAssign);
 
-                List<Intervention> interventionsToAssign = assignSeriesBox.isSelected()
-                        ? planning.getFutureInterventionsByRecurringId(recurringId, LocalDateTime.now())
-                        : List.of(intervention);
+					if (totalOverrun > 0) {
+						int confirmation = JOptionPane.showConfirmDialog(parent,
+								"Cette attribution causerait dépassement des heures prévues sur les semaines concernées. "
+										+ FormatUtils.formatContractHours(totalOverrun) + "\nVoulez-vous continuer ?",
+								"dépassement des heures prévues sur les semaines concernées", JOptionPane.YES_NO_OPTION,
+								JOptionPane.WARNING_MESSAGE);
 
-                if (planning.hasOverlap(employee, interventionsToAssign)) {
-                    JOptionPane.showMessageDialog(parent,
-                            "Cet employé a un chevauchement sur au moins une des interventions.");
-                    return;
-                }
+						if (confirmation != JOptionPane.YES_OPTION) {
+							return;
+						}
+					}
 
-                double totalOverrun = hours.getProjectedWeeklyOverrun(employee, interventionsToAssign);
+					if (assignSeriesBox.isSelected())
+						recurringInterventionList.assignFutureSeries(planning, recurringId, employee);
+					else
+						planning.assignEmployee(interventionsToAssign, employee);
 
-                if (totalOverrun > 0) {
-                    int confirmation = JOptionPane.showConfirmDialog(parent,
-                            "Cette attribution causerait dépassement des heures prévues sur les semaines concernées. "
-                                    + FormatUtils.formatContractHours(totalOverrun) + "\nVoulez-vous continuer ?",
-                            "dépassement des heures prévues sur les semaines concernées", JOptionPane.YES_NO_OPTION,
-                            JOptionPane.WARNING_MESSAGE);
+					onChange.run();
 
-                    if (confirmation != JOptionPane.YES_OPTION) {
-                        return;
-                    }
-                }
+					Window window = SwingUtilities.getWindowAncestor(employeeButton);
 
-                if (assignSeriesBox.isSelected()) recurringInterventionList.assignFutureSeries(planning, recurringId, employee);
-                else planning.assignEmployee(interventionsToAssign, employee);
+					if (window != null) {
+						window.dispose();
+					}
 
-                onChange.run();
+				} catch (UncheckedIOException | IllegalArgumentException e) {
+					ActionDialogs.error(parent, e);
+				}
+			});
 
-                Window window = SwingUtilities.getWindowAncestor(employeeButton);
+			employeesPanel.add(employeeButton);
+		}
 
-                if (window != null) {
-                    window.dispose();
-                }
-                } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(parent, e); }
-            });
-
-            employeesPanel.add(employeeButton);
-        }
-
-        JOptionPane.showMessageDialog(parent, employeesPanel, "Attribuer l'intervention", JOptionPane.PLAIN_MESSAGE);
-    }
+		JOptionPane.showMessageDialog(parent, employeesPanel, "Attribuer l'intervention", JOptionPane.PLAIN_MESSAGE);
+	}
 }

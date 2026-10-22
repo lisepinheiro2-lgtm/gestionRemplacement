@@ -27,18 +27,24 @@ public final class ApplicationContext {
     private final AbsenceService absences;
 
     public ApplicationContext(Path directory) throws IOException {
+    	
         CsvStore.recover(directory);
+        
         personnel = new PersonnelService(new EmployeeCsvRepository(directory));
         clients = new ClientService(new ClientCsvRepository(directory));
         planning = new PlanningService(personnel, clients, new InterventionCsvRepository(directory));
         recurring = new RecurringInterventionService(clients, personnel,
                 new RecurringInterventionCsvRepository(directory));
         replacements = new ReplacementService(new ReplacementCsvRepository(directory));
+        
         for (var intervention : planning.getInterventions()) {
+        	
             String id = intervention.getRecurringId();
+            
             if (id != null && recurring.getRecurringInterventions().stream().noneMatch(r -> id.equals(r.getId())))
                 throw new IOException("interventions.csv : série référencée introuvable ; aucun fichier modifié.");
         }
+        
         absences = new AbsenceService(personnel, replacements, planning, new AbsenceCsvRepository(directory));
     }
 

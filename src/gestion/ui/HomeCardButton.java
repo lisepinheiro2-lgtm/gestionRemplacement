@@ -21,6 +21,7 @@ import gestion.ui.raven.RavenStyledButton;
 import gestion.ui.raven.RavenTone;
 
 public final class HomeCardButton extends RavenStyledButton implements AppThemeAware {
+
 	private final JLabel heading;
 	private final JLabel description;
 	private final JLabel status;
@@ -34,6 +35,7 @@ public final class HomeCardButton extends RavenStyledButton implements AppThemeA
 		this.kind = kind;
 		this.accent = accent;
 		this.available = available;
+
 		setTone(RavenTone.NEUTRAL);
 		setText("");
 		setLayout(new BorderLayout(18, 0));
@@ -63,10 +65,12 @@ public final class HomeCardButton extends RavenStyledButton implements AppThemeA
 		text.add(heading);
 		text.add(Box.createVerticalStrut(7));
 		text.add(description);
+
 		if (!available) {
 			text.add(Box.createVerticalStrut(4));
 			text.add(status);
 		}
+
 		text.add(Box.createVerticalGlue());
 		illustration.setVerticalAlignment(JLabel.CENTER);
 		arrow.setVerticalAlignment(JLabel.CENTER);
@@ -82,15 +86,18 @@ public final class HomeCardButton extends RavenStyledButton implements AppThemeA
 		Color foreground = dark ? new Color(237, 242, 249) : new Color(30, 43, 63);
 		Color muted = dark ? new Color(159, 174, 194) : new Color(102, 118, 139);
 		Color hover = dark ? new Color(40, 52, 70) : new Color(245, 249, 255);
+
 		putClientProperty("FlatLaf.style",
 				"arc:22;margin:18,22,18,22;borderWidth:1;focusWidth:2;innerFocusWidth:0;" + "background:" + hex(surface)
 						+ ";borderColor:" + hex(line) + ";hoverBackground:" + hex(hover) + ";hoverBorderColor:"
 						+ hex(accent) + ";focusedBorderColor:" + hex(accent) + ";focusColor:" + hex(accent)
 						+ ";disabledBackground:" + hex(surface) + ";disabledBorderColor:" + hex(line));
+
 		heading.setForeground(available ? foreground : muted);
 		description.setForeground(muted);
 		status.setForeground(muted);
 		arrow.setIcon(available ? new NavigationIcon(NavigationIcon.Kind.ARROW, 18, muted) : null);
+
 		illustration.setIcon(new Icon() {
 			public int getIconWidth() {
 				return 54;

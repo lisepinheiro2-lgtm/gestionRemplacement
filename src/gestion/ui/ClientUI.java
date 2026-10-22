@@ -84,8 +84,12 @@ public class ClientUI extends JPanel {
 		String[] columns = { "Nom", "Prénom", "Adresse", "Heures contrat", "Début contrat", "Fin contrat" };
 
 		tableModel = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
-        };
+			@Override
+			public boolean isCellEditable(int row, int column) {
+				return false;
+			}
+		};
+
 		clientTable = new JTable(tableModel);
 
 		JScrollPane scrollPane = new JScrollPane(clientTable);
@@ -152,17 +156,16 @@ public class ClientUI extends JPanel {
 			startDateField.setText("");
 			endDateField.setText("");
 
-        } catch (UncheckedIOException e) {
-            ActionDialogs.error(this, e);
-        } catch (IllegalArgumentException e) {
-            ActionDialogs.error(this, e);
-        } catch (DateTimeParseException e) {
+		} catch (UncheckedIOException e) {
+			ActionDialogs.error(this, e);
+		} catch (IllegalArgumentException e) {
+			ActionDialogs.error(this, e);
+		} catch (DateTimeParseException e) {
 			JOptionPane.showMessageDialog(this, "Format invalide. Heures : 120 ou 120,5. Date : 05/03/2027.");
 		}
 	}
 
 	private void removeClient() {
-
 		int index = clientTable.getSelectedRow();
 
 		if (index == -1) {
@@ -170,10 +173,12 @@ public class ClientUI extends JPanel {
 			return;
 		}
 
-        try {
-            clients.removeClient(clientTable.convertRowIndexToModel(index));
-            refreshTable();
-        } catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); }
+		try {
+			clients.removeClient(clientTable.convertRowIndexToModel(index));
+			refreshTable();
+		} catch (UncheckedIOException | IllegalArgumentException e) {
+			ActionDialogs.error(this, e);
+		}
 	}
 
 	private void refreshTable() {

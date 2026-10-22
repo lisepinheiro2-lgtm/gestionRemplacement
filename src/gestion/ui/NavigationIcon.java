@@ -44,7 +44,9 @@ public final class NavigationIcon implements Icon {
 		g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 		g.setColor(color);
 		g.setStroke(new BasicStroke(1.65f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
 		switch (kind) {
+
 		case PEOPLE -> {
 			g.draw(new Ellipse2D.Double(6, 3.5, 6, 6));
 			g.draw(new Arc2D.Double(2.5, 12, 13, 13, 0, 180, Arc2D.OPEN));
@@ -54,6 +56,7 @@ public final class NavigationIcon implements Icon {
 			g.draw(new Arc2D.Double(14, 13, 7, 10, 0, 85, Arc2D.OPEN));
 			line(g, 21, 18, 21, 21);
 		}
+
 		case CLIENTS -> {
 			g.draw(new RoundRectangle2D.Double(3, 8, 18, 13, 3, 3));
 			g.draw(new RoundRectangle2D.Double(8, 3, 8, 5, 2, 2));
@@ -61,6 +64,7 @@ public final class NavigationIcon implements Icon {
 			line(g, 10, 13, 10, 15);
 			line(g, 14, 13, 14, 15);
 		}
+
 		case CALENDAR -> {
 			g.draw(new RoundRectangle2D.Double(3, 5, 18, 16, 3, 3));
 			line(g, 7, 3, 7, 7);
@@ -70,6 +74,7 @@ public final class NavigationIcon implements Icon {
 				for (int col = 0; col < 3; col++)
 					g.fill(new RoundRectangle2D.Double(6 + col * 5, 13 + row * 4, 2, 2, .7, .7));
 		}
+
 		case REPLACEMENTS -> {
 			line(g, 4, 7, 20, 7);
 			line(g, 16, 3, 20, 7);
@@ -78,6 +83,7 @@ public final class NavigationIcon implements Icon {
 			line(g, 8, 13, 4, 17);
 			line(g, 8, 21, 4, 17);
 		}
+
 		case INTERVENTIONS -> {
 			g.draw(new RoundRectangle2D.Double(4, 4, 16, 18, 3, 3));
 			g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 60));
@@ -89,22 +95,27 @@ public final class NavigationIcon implements Icon {
 			line(g, 14, 11, 17, 11);
 			line(g, 8, 17, 17, 17);
 		}
+
 		case ARCHIVE -> {
 			g.draw(new RoundRectangle2D.Double(3, 4, 18, 5, 2, 2));
 			g.draw(new RoundRectangle2D.Double(5, 9, 14, 12, 2, 2));
 			line(g, 10, 13, 14, 13);
 		}
+
 		case HOME -> {
 			path(g, 3, 11, 12, 3, 21, 11);
 			path(g, 6, 9, 6, 21, 10, 21, 10, 15, 14, 15, 14, 21, 18, 21, 18, 9);
 		}
+
 		case ARROW -> {
 			line(g, 4, 12, 20, 12);
 			path(g, 14, 6, 20, 12, 14, 18);
 		}
+
 		case SETTINGS -> {
 			g.draw(new Ellipse2D.Double(5.5, 5.5, 13, 13));
 			g.draw(new Ellipse2D.Double(9, 9, 6, 6));
+
 			for (int i = 0; i < 8; i++) {
 				double angle = i * Math.PI / 4;
 				line(g, 12 + Math.cos(angle) * 7, 12 + Math.sin(angle) * 7, 12 + Math.cos(angle) * 9.5,
@@ -112,6 +123,7 @@ public final class NavigationIcon implements Icon {
 			}
 		}
 		}
+
 		g.dispose();
 	}
 
@@ -122,6 +134,7 @@ public final class NavigationIcon implements Icon {
 	private static void path(Graphics2D g, double... coordinates) {
 		Path2D path = new Path2D.Double();
 		path.moveTo(coordinates[0], coordinates[1]);
+
 		for (int i = 2; i < coordinates.length; i += 2)
 			path.lineTo(coordinates[i], coordinates[i + 1]);
 		g.draw(path);

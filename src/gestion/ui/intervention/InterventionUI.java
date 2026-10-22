@@ -32,416 +32,427 @@ import gestion.ui.UIUtils;
 import gestion.util.FormatUtils;
 
 public class InterventionUI extends JPanel {
-    private final InterventionCreationDialogs dialogs;
-
-    private PlanningService planning;
-    private RecurringInterventionService recurringInterventionList;
-
-    private JPanel interventionPanel;
-
-    private JButton previousButton;
-    private JButton nextButton;
-    private JTextField searchButton;
-    private JButton addInterventionButton;
-    private JButton addRecurringButton;
-    private JButton removeInterventionButton;
-    private JButton removeRecurringInterventionButton;
-    private JComboBox<String> viewBox;
-    private int currentPage = 0;
-    private final ArrayList<Intervention> visibleRows = new ArrayList<>();
-    private DefaultTableModel interventionTableModel;
-    private JTable interventionTable;
-    private JScrollPane interventionScrollPane;
-    private String currentSearchText = "";
-    private JLabel searchIcon;
-
-    public InterventionUI(PlanningService planning, RecurringInterventionService recurringInterventionList,
-            ClientService clients, PersonnelService personnel) {
-
-        this.planning = planning;
-        this.recurringInterventionList = recurringInterventionList;
-
-        setLayout(new BorderLayout());
-        createNavigationPanel();
-        interventionPanel = new JPanel();
-        add(interventionPanel, BorderLayout.CENTER);
-
-        createInterventionTable();
-
-        dialogs = new InterventionCreationDialogs(this, planning, personnel, clients, recurringInterventionList,
-                this::refreshAfterCreation);
-    }
-
-    private void createNavigationPanel() {
-
-        JPanel navigationPanel = new JPanel(new BorderLayout());
-
-        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JPanel pagePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
-        addInterventionButton = new JButton("Ajouter une intervention");
-        addRecurringButton = new JButton("Ajouter une intervention récurrente");
-        removeInterventionButton = new JButton("Supprimer une intervention");
-        removeRecurringInterventionButton = new JButton("Supprimer une intervention récurrente");
-        searchIcon = new JLabel("🔍");
-        searchButton = new JTextField(20);
-        previousButton = new JButton("<");
-        nextButton = new JButton(">");
+	private final InterventionCreationDialogs dialogs;
+
+	private PlanningService planning;
+	private RecurringInterventionService recurringInterventionList;
+
+	private JPanel interventionPanel;
+	private JButton previousButton;
+	private JButton nextButton;
+	private JTextField searchButton;
+	private JButton addInterventionButton;
+	private JButton addRecurringButton;
+	private JButton removeInterventionButton;
+	private JButton removeRecurringInterventionButton;
+	private JComboBox<String> viewBox;
+	private int currentPage = 0;
+	private final ArrayList<Intervention> visibleRows = new ArrayList<>();
+	private DefaultTableModel interventionTableModel;
+	private JTable interventionTable;
+	private JScrollPane interventionScrollPane;
+	private String currentSearchText = "";
+	private JLabel searchIcon;
+
+	public InterventionUI(PlanningService planning, RecurringInterventionService recurringInterventionList,
+			ClientService clients, PersonnelService personnel) {
+
+		this.planning = planning;
+		this.recurringInterventionList = recurringInterventionList;
+
+		setLayout(new BorderLayout());
+		createNavigationPanel();
+		interventionPanel = new JPanel();
+		add(interventionPanel, BorderLayout.CENTER);
+
+		createInterventionTable();
+
+		dialogs = new InterventionCreationDialogs(this, planning, personnel, clients, recurringInterventionList,
+				this::refreshAfterCreation);
+	}
+
+	private void createNavigationPanel() {
+		JPanel navigationPanel = new JPanel(new BorderLayout());
+		JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+		JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+		JPanel pagePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+		addInterventionButton = new JButton("Ajouter une intervention");
+		addRecurringButton = new JButton("Ajouter une intervention récurrente");
+		removeInterventionButton = new JButton("Supprimer une intervention");
+		removeRecurringInterventionButton = new JButton("Supprimer une intervention récurrente");
+		searchIcon = new JLabel("🔍");
+		searchButton = new JTextField(20);
+		previousButton = new JButton("<");
+		nextButton = new JButton(">");
+
+		String[] views = { "Trier par...", "Dates", "Clients", "Intervenants" };
+		viewBox = new JComboBox<>(views);
+		viewBox.setSelectedItem("Dates");
+
+		actionsPanel.add(addInterventionButton);
+		actionsPanel.add(addRecurringButton);
+		actionsPanel.add(removeInterventionButton);
+		actionsPanel.add(removeRecurringInterventionButton);
+		actionsPanel.add(viewBox);
+
+		searchPanel.add(searchIcon);
+		searchPanel.add(searchButton);
+
+		pagePanel.add(previousButton);
+		pagePanel.add(nextButton);
+
+		UIUtils.addTextChangeListener(searchButton, this::resetSearchIfEmpty);
+		navigationPanel.add(actionsPanel, BorderLayout.WEST);
+		navigationPanel.add(searchPanel, BorderLayout.CENTER);
+		navigationPanel.add(pagePanel, BorderLayout.EAST);
+		add(navigationPanel, BorderLayout.NORTH);
+
+		previousButton.addActionListener(event -> previousPage());
+		searchButton.addActionListener(event -> search());
+		nextButton.addActionListener(event -> nextPage());
+		viewBox.addActionListener(event -> view());
+		addInterventionButton.addActionListener(event -> dialogs.openAddIntervention());
+		addRecurringButton.addActionListener(event -> dialogs.openAddRecurringIntervention());
+		removeInterventionButton.addActionListener(event -> removeIntervention());
+		removeRecurringInterventionButton.addActionListener(event -> removeRecurringIntervention());
+
+	}
+
+	private void createInterventionTable() {
+
+		String[] columns = { "Client", "Jour(s)", "Horaires", "Intervenant", "Type" };
+		interventionTableModel = new DefaultTableModel(columns, 0) {
+			@Override
+			public boolean isCellEditable(int row, int column) {
+				return false;
+			}
+		};
+
+		interventionTable = new JTable(interventionTableModel);
+		interventionScrollPane = new JScrollPane(interventionTable);
+
+		interventionScrollPane.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
+			@Override
+			public void componentResized(java.awt.event.ComponentEvent event) {
+				Intervention selected = getSelectedIntervention();
 
-        String[] views = { "Trier par...", "Dates", "Clients", "Intervenants" };
-        viewBox = new JComboBox<>(views);
-        viewBox.setSelectedItem("Dates");
+				if (selected != null) {
+					int position = buildDisplayedInterventions().indexOf(selected);
+					if (position >= 0)
+						currentPage = position / getInterventionsPerPage();
+				}
 
-        actionsPanel.add(addInterventionButton);
-        actionsPanel.add(addRecurringButton);
-        actionsPanel.add(removeInterventionButton);
-        actionsPanel.add(removeRecurringInterventionButton);
-        actionsPanel.add(viewBox);
+				refreshIntervention();
+				int row = visibleRows.indexOf(selected);
 
-        searchPanel.add(searchIcon);
-        searchPanel.add(searchButton);
+				if (row >= 0)
+					interventionTable.setRowSelectionInterval(row, row);
+			}
+		});
 
-        pagePanel.add(previousButton);
-        pagePanel.add(nextButton);
+		interventionPanel.setLayout(new BorderLayout());
+		interventionPanel.add(interventionScrollPane, BorderLayout.CENTER);
+	}
 
-        UIUtils.addTextChangeListener(searchButton, this::resetSearchIfEmpty);
-        navigationPanel.add(actionsPanel, BorderLayout.WEST);
-        navigationPanel.add(searchPanel, BorderLayout.CENTER);
-        navigationPanel.add(pagePanel, BorderLayout.EAST);
-        add(navigationPanel, BorderLayout.NORTH);
+	private void search() {
+		currentSearchText = searchButton.getText().trim().toLowerCase();
+		currentPage = 0;
+		ArrayList<Intervention> results = buildDisplayedInterventions();
 
-        previousButton.addActionListener(event -> previousPage());
-        searchButton.addActionListener(event -> search());
-        nextButton.addActionListener(event -> nextPage());
-        viewBox.addActionListener(event -> view());
-        addInterventionButton.addActionListener(event -> dialogs.openAddIntervention());
-        addRecurringButton.addActionListener(event -> dialogs.openAddRecurringIntervention());
-        removeInterventionButton.addActionListener(event -> removeIntervention());
-        removeRecurringInterventionButton.addActionListener(event -> removeRecurringIntervention());
-
-    }
-
-    private void createInterventionTable() {
-
-        String[] columns = { "Client", "Jour(s)", "Horaires", "Intervenant", "Type" };
-
-        interventionTableModel = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
-        };
-        interventionTable = new JTable(interventionTableModel);
-
-        interventionScrollPane = new JScrollPane(interventionTable);
-        interventionScrollPane.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
-            @Override public void componentResized(java.awt.event.ComponentEvent event) {
-                Intervention selected = getSelectedIntervention();
-                if (selected != null) {
-                    int position = buildDisplayedInterventions().indexOf(selected);
-                    if (position >= 0) currentPage = position / getInterventionsPerPage();
-                }
-                refreshIntervention();
-                int row = visibleRows.indexOf(selected);
-                if (row >= 0) interventionTable.setRowSelectionInterval(row, row);
-            }
-        });
+		if (!currentSearchText.isBlank() && results.isEmpty()) {
+			JOptionPane.showMessageDialog(this, "Aucune correspondance.");
+		}
 
-        interventionPanel.setLayout(new BorderLayout());
-        interventionPanel.add(interventionScrollPane, BorderLayout.CENTER);
-    }
+		refreshIntervention(results);
+	}
 
-    private void search() {
+	private ArrayList<Intervention> buildDisplayedInterventions() {
+		ArrayList<Intervention> displayedInterventions = new ArrayList<>(planning.getInterventions());
 
-        currentSearchText = searchButton.getText().trim().toLowerCase();
-        currentPage = 0;
+		if (!currentSearchText.isBlank()) {
+			boolean searchApplied = false;
 
-        ArrayList<Intervention> results = buildDisplayedInterventions();
+			try {
+				LocalDate searchedDate = FormatUtils.parseDate(currentSearchText);
+				displayedInterventions.removeIf(intervention -> searchedDate.isBefore(intervention.getStartDate())
+						|| searchedDate.isAfter(intervention.getEndDate()));
 
-        if (!currentSearchText.isBlank() && results.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Aucune correspondance.");
-        }
+				searchApplied = true;
 
-        refreshIntervention(results);
-    }
+			} catch (DateTimeParseException e) {
+			}
 
-    private ArrayList<Intervention> buildDisplayedInterventions() {
+			if (!searchApplied) {
 
-        ArrayList<Intervention> displayedInterventions = new ArrayList<>(planning.getInterventions());
+				try {
+					LocalTime searchedTime = FormatUtils.parseTime(currentSearchText);
 
-        if (!currentSearchText.isBlank()) {
-            boolean searchApplied = false;
+					displayedInterventions.removeIf(intervention -> !intervention.getStartTime().equals(searchedTime));
+					searchApplied = true;
 
-            try {
+				} catch (DateTimeParseException e) {
 
-                LocalDate searchedDate = FormatUtils.parseDate(currentSearchText);
+				}
 
-                displayedInterventions.removeIf(intervention -> searchedDate.isBefore(intervention.getStartDate())
-                        || searchedDate.isAfter(intervention.getEndDate()));
+				if (!searchApplied) {
+					displayedInterventions.removeIf(intervention -> !matchesName(intervention, currentSearchText));
+				}
+			}
+		}
 
-                searchApplied = true;
+		String selectedView = (String) viewBox.getSelectedItem();
 
-            } catch (DateTimeParseException e) {
-            }
+		switch (selectedView) {
 
-            if (!searchApplied) {
+		case "Dates":
+			displayedInterventions
+					.sort(Comparator.comparing(Intervention::getStartDate).thenComparing(Intervention::getStartTime));
+			break;
 
-                try {
+		case "Clients":
+			displayedInterventions
+					.sort(Comparator.comparing((Intervention intervention) -> intervention.getClient().getLastName())
+							.thenComparing(intervention -> intervention.getClient().getFirstName()));
+			break;
 
-                    LocalTime searchedTime = FormatUtils.parseTime(currentSearchText);
+		case "Intervenants":
+			displayedInterventions.sort(Comparator.comparing(Intervention::getEmployee, Comparator
+					.nullsLast(Comparator.comparing(Employee::getLastName).thenComparing(Employee::getFirstName))));
+			break;
 
-                    displayedInterventions.removeIf(intervention -> !intervention.getStartTime().equals(searchedTime));
-                    searchApplied = true;
+		default:
+			break;
+		}
 
-                } catch (DateTimeParseException e) {
+		return displayedInterventions;
+	}
 
-                }
-                if (!searchApplied) {
-                    displayedInterventions.removeIf(intervention -> !matchesName(intervention, currentSearchText));
-                }
-            }
-        }
+	private void refreshIntervention(ArrayList<Intervention> displayedInterventions) {
 
-        String selectedView = (String) viewBox.getSelectedItem();
+		interventionTableModel.setRowCount(0);
+		visibleRows.clear();
+		int interventionsPerPage = getInterventionsPerPage();
+		currentPage = Math.min(currentPage, Math.max(0, (displayedInterventions.size() - 1) / interventionsPerPage));
+		int startIndex = currentPage * interventionsPerPage;
+		int endIndex = startIndex + interventionsPerPage;
 
-        switch (selectedView) {
+		endIndex = Math.min(endIndex, displayedInterventions.size());
 
-        case "Dates":
-            displayedInterventions
-                    .sort(Comparator.comparing(Intervention::getStartDate).thenComparing(Intervention::getStartTime));
-            break;
-        case "Clients":
-            displayedInterventions
-                    .sort(Comparator.comparing((Intervention intervention) -> intervention.getClient().getLastName())
-                            .thenComparing(intervention -> intervention.getClient().getFirstName()));
-            break;
-        case "Intervenants":
-            displayedInterventions.sort(Comparator.comparing(Intervention::getEmployee, Comparator
-                    .nullsLast(Comparator.comparing(Employee::getLastName).thenComparing(Employee::getFirstName))));
-            break;
-        default:
-            break;
-        }
+		for (int i = startIndex; i < endIndex; i++) {
+			Intervention intervention = displayedInterventions.get(i);
+			visibleRows.add(intervention);
+			String clientFirstName = intervention.getClient().getFirstName();
+			String clientLastName = intervention.getClient().getLastName();
+			String clientFullName = clientLastName + " " + clientFirstName;
+			String employeeFullName = "Non attribué";
 
-        return displayedInterventions;
-    }
+			if (intervention.getEmployee() != null) {
+				String employeeFirstName = intervention.getEmployee().getFirstName();
+				String employeeLastName = intervention.getEmployee().getLastName();
+				employeeFullName = employeeLastName + " " + employeeFirstName;
+			}
 
-    private void refreshIntervention(ArrayList<Intervention> displayedInterventions) {
+			DayOfWeek day = intervention.getStartDate().getDayOfWeek();
+			LocalTime startHour = intervention.getStartTime();
+			LocalTime endHour = intervention.getEndTime();
+			String dayOfIntervention = FormatUtils.formatDay(day) + " "
+					+ FormatUtils.formatDate(intervention.getStartDate());
+			String hours = FormatUtils.formatTime(startHour) + " / " + FormatUtils.formatTime(endHour);
+			String type = intervention.getRecurringId();
 
-        interventionTableModel.setRowCount(0);
-        visibleRows.clear();
-        int interventionsPerPage = getInterventionsPerPage();
-        currentPage = Math.min(currentPage, Math.max(0, (displayedInterventions.size() - 1) / interventionsPerPage));
-        int startIndex = currentPage * interventionsPerPage;
-        int endIndex = startIndex + interventionsPerPage;
+			if (type == null || type.isBlank()) {
+				type = "Unique";
 
-        endIndex = Math.min(endIndex, displayedInterventions.size());
+			} else {
+				type = "Récurrent";
+			}
 
-        for (int i = startIndex; i < endIndex; i++) {
+			interventionTableModel
+					.addRow(new Object[] { clientFullName, dayOfIntervention, hours, employeeFullName, type });
+		}
 
-            Intervention intervention = displayedInterventions.get(i);
-            visibleRows.add(intervention);
+		updatePageButtons(displayedInterventions);
+		interventionPanel.revalidate();
+		interventionPanel.repaint();
+	}
 
-            String clientFirstName = intervention.getClient().getFirstName();
-            String clientLastName = intervention.getClient().getLastName();
-            String clientFullName = clientLastName + " " + clientFirstName;
+	private boolean matchesName(Intervention intervention, String searchText) {
 
-            String employeeFullName = "Non attribué";
+		Client client = intervention.getClient();
+		Employee employee = intervention.getEmployee();
 
-            if (intervention.getEmployee() != null) {
+		return (client != null && matchesPerson(client.getFirstName(), client.getLastName(), searchText))
+				|| (employee != null && matchesPerson(employee.getFirstName(), employee.getLastName(), searchText));
+	}
 
-                String employeeFirstName = intervention.getEmployee().getFirstName();
-                String employeeLastName = intervention.getEmployee().getLastName();
-                employeeFullName = employeeLastName + " " + employeeFirstName;
-            }
+	private boolean matchesPerson(String firstName, String lastName, String searchText) {
 
-            DayOfWeek day = intervention.getStartDate().getDayOfWeek();
-            LocalTime startHour = intervention.getStartTime();
-            LocalTime endHour = intervention.getEndTime();
+		firstName = firstName.toLowerCase();
+		lastName = lastName.toLowerCase();
+		searchText = searchText.toLowerCase();
+		String fullName = firstName + " " + lastName;
+		String fullNameReverse = lastName + " " + firstName;
 
-            String dayOfIntervention = FormatUtils.formatDay(day) + " "
-                    + FormatUtils.formatDate(intervention.getStartDate());
-            String hours = FormatUtils.formatTime(startHour) + " / " + FormatUtils.formatTime(endHour);
-            String type = intervention.getRecurringId();
+		return firstName.contains(searchText) || lastName.contains(searchText) || fullName.contains(searchText)
+				|| fullNameReverse.contains(searchText);
+	}
 
-            if (type == null || type.isBlank()) {
-                type = "Unique";
+	private void removeIntervention() {
 
-            } else {
-                type = "Récurrent";
-            }
+		Intervention interventionToRemove = getSelectedIntervention();
 
-            interventionTableModel
-                    .addRow(new Object[] { clientFullName, dayOfIntervention, hours, employeeFullName, type });
-        }
+		if (interventionToRemove == null) {
+			JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention.");
+			return;
+		}
 
-        updatePageButtons(displayedInterventions);
-        interventionPanel.revalidate();
-        interventionPanel.repaint();
-    }
+		try {
+			planning.removeIntervention(interventionToRemove);
+		} catch (UncheckedIOException | IllegalArgumentException e) {
+			ActionDialogs.error(this, e);
+			return;
+		}
 
-    private boolean matchesName(Intervention intervention, String searchText) {
+		adjustCurrentPage();
+		refreshIntervention();
+	}
 
-        Client client = intervention.getClient();
-        Employee employee = intervention.getEmployee();
+	public void removeRecurringIntervention() {
+		Intervention interventionToRemove = getSelectedIntervention();
 
-        return (client != null && matchesPerson(client.getFirstName(), client.getLastName(), searchText))
-                || (employee != null && matchesPerson(employee.getFirstName(), employee.getLastName(), searchText));
-    }
+		if (interventionToRemove == null) {
+			JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention récurrente.");
+			return;
+		}
 
-    private boolean matchesPerson(String firstName, String lastName, String searchText) {
+		String recurringIdToRemove = interventionToRemove.getRecurringId();
 
-        firstName = firstName.toLowerCase();
-        lastName = lastName.toLowerCase();
-        searchText = searchText.toLowerCase();
+		if (recurringIdToRemove == null || recurringIdToRemove.isBlank()) {
+			JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention récurrente.");
+			return;
+		}
 
-        String fullName = firstName + " " + lastName;
-        String fullNameReverse = lastName + " " + firstName;
+		if (!ActionDialogs.confirm(this,
+				"Supprimer les occurrences à venir de cette série ? Les interventions déjà commencées et leur historique seront conservés."))
+			return;
 
-        return firstName.contains(searchText) || lastName.contains(searchText) || fullName.contains(searchText)
-                || fullNameReverse.contains(searchText);
-    }
+		try {
+			recurringInterventionList.removeFutureSeries(planning, recurringIdToRemove);
+		}
 
-    private void removeIntervention() {
+		catch (UncheckedIOException | IllegalArgumentException e) {
+			ActionDialogs.error(this, e);
+			return;
+		}
 
-        Intervention interventionToRemove = getSelectedIntervention();
+		adjustCurrentPage();
+		refreshIntervention();
+	}
 
-        if (interventionToRemove == null) {
-            JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention.");
-            return;
-        }
+	private void adjustCurrentPage() {
 
-        try { planning.removeIntervention(interventionToRemove); }
-        catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); return; }
+		ArrayList<Intervention> displayedInterventions = buildDisplayedInterventions();
 
-        adjustCurrentPage();
-        refreshIntervention();
-    }
+		if (displayedInterventions.isEmpty()) {
+			currentPage = 0;
+			return;
+		}
 
-    public void removeRecurringIntervention() {
+		int interventionsPerPage = getInterventionsPerPage();
+		int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
 
-        Intervention interventionToRemove = getSelectedIntervention();
+		if (currentPage > endPage) {
+			currentPage = endPage;
+		}
+	}
 
-        if (interventionToRemove == null) {
-            JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention récurrente.");
-            return;
-        }
+	private Intervention getSelectedIntervention() {
+		int row = interventionTable.getSelectedRow();
+		if (row < 0)
+			return null;
+		row = interventionTable.convertRowIndexToModel(row);
+		return row < visibleRows.size() ? visibleRows.get(row) : null;
+	}
 
-        String recurringIdToRemove = interventionToRemove.getRecurringId();
+	private int getInterventionsPerPage() {
 
-        if (recurringIdToRemove == null || recurringIdToRemove.isBlank()) {
-            JOptionPane.showMessageDialog(this, "Veuillez sélectionner une intervention récurrente.");
-            return;
-        }
+		int size = interventionScrollPane.getViewport().getExtentSize().height;
+		int rowSize = interventionTable.getRowHeight();
+		int interventionsVisiblePerPage = 0;
 
-        if (!ActionDialogs.confirm(this, "Supprimer les occurrences à venir de cette série ? Les interventions déjà commencées et leur historique seront conservés.")) return;
-        try { recurringInterventionList.removeFutureSeries(planning, recurringIdToRemove); }
-        catch (UncheckedIOException | IllegalArgumentException e) { ActionDialogs.error(this, e); return; }
+		if (rowSize > 0) {
+			interventionsVisiblePerPage = size / rowSize;
+		}
 
-        adjustCurrentPage();
-        refreshIntervention();
-    }
+		if (interventionsVisiblePerPage > 0) {
+			return interventionsVisiblePerPage;
+		} else {
+			return 1;
+		}
+	}
 
-    private void adjustCurrentPage() {
+	private void resetSearchIfEmpty() {
 
-        ArrayList<Intervention> displayedInterventions = buildDisplayedInterventions();
+		if (searchButton.getText().isBlank()) {
+			currentSearchText = "";
+			currentPage = 0;
+			refreshIntervention();
+		}
+	}
 
-        if (displayedInterventions.isEmpty()) {
-            currentPage = 0;
-            return;
-        }
+	private void previousPage() {
 
-        int interventionsPerPage = getInterventionsPerPage();
-        int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
+		if (currentPage > 0) {
+			currentPage--;
+		}
 
-        if (currentPage > endPage) {
-            currentPage = endPage;
-        }
-    }
+		refreshIntervention();
+	}
 
-    private Intervention getSelectedIntervention() {
-        int row = interventionTable.getSelectedRow();
-        if (row < 0) return null;
-        row = interventionTable.convertRowIndexToModel(row);
-        return row < visibleRows.size() ? visibleRows.get(row) : null;
-    }
+	private void nextPage() {
 
-    private int getInterventionsPerPage() {
+		ArrayList<Intervention> displayedInterventions = buildDisplayedInterventions();
+		int interventionsPerPage = getInterventionsPerPage();
+		int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
 
-        int size = interventionScrollPane.getViewport().getExtentSize().height;
-        int rowSize = interventionTable.getRowHeight();
-        int interventionsVisiblePerPage = 0;
+		if (currentPage < endPage) {
+			currentPage++;
+		}
 
-        if (rowSize > 0) {
-            interventionsVisiblePerPage = size / rowSize;
-        }
+		refreshIntervention();
+	}
 
-        if (interventionsVisiblePerPage > 0) {
-            return interventionsVisiblePerPage;
-        } else {
-            return 1;
-        }
-    }
+	private void updatePageButtons(ArrayList<Intervention> displayedInterventions) {
 
-    private void resetSearchIfEmpty() {
+		int interventionsPerPage = getInterventionsPerPage();
+		int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
 
-        if (searchButton.getText().isBlank()) {
-            currentSearchText = "";
-            currentPage = 0;
-            refreshIntervention();
-        }
-    }
+		previousButton.setEnabled(currentPage > 0);
+		nextButton.setEnabled(currentPage < endPage);
+	}
 
-    private void previousPage() {
+	private void view() {
+		currentPage = 0;
+		refreshIntervention();
+	}
 
-        if (currentPage > 0) {
-            currentPage--;
-        }
+	private void refreshAfterCreation() {
+		currentPage = 0;
+		refreshIntervention();
+	}
 
-        refreshIntervention();
-    }
+	public void refreshIntervention() {
+		refreshIntervention(buildDisplayedInterventions());
+	}
 
-    private void nextPage() {
+	public void addRecurringIntervention(RecurringIntervention recurringIntervention) {
+		recurringInterventionList.addRecurringIntervention(recurringIntervention);
+	}
 
-        ArrayList<Intervention> displayedInterventions = buildDisplayedInterventions();
-        int interventionsPerPage = getInterventionsPerPage();
-        int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
-
-        if (currentPage < endPage) {
-            currentPage++;
-        }
-
-        refreshIntervention();
-    }
-
-    private void updatePageButtons(ArrayList<Intervention> displayedInterventions) {
-
-        int interventionsPerPage = getInterventionsPerPage();
-        int endPage = (displayedInterventions.size() - 1) / interventionsPerPage;
-
-        previousButton.setEnabled(currentPage > 0);
-        nextButton.setEnabled(currentPage < endPage);
-    }
-
-    private void view() {
-
-        currentPage = 0;
-        refreshIntervention();
-    }
-
-    private void refreshAfterCreation() {
-        currentPage = 0;
-        refreshIntervention();
-    }
-
-    public void refreshIntervention() {
-        refreshIntervention(buildDisplayedInterventions());
-    }
-
-    public void addRecurringIntervention(RecurringIntervention recurringIntervention) {
-        recurringInterventionList.addRecurringIntervention(recurringIntervention);
-    }
-
-    public void removeRecurringIntervention(int index) {
-        recurringInterventionList.removeRecurringIntervention(index);
-    }
+	public void removeRecurringIntervention(int index) {
+		recurringInterventionList.removeRecurringIntervention(index);
+	}
 
 }
