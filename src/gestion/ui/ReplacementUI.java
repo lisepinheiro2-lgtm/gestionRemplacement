@@ -1,6 +1,9 @@
 package gestion.ui;
 
 import java.awt.BorderLayout;
+import java.util.ArrayList;
+import java.util.List;
+import gestion.model.Intervention;
 import java.io.UncheckedIOException;
 import gestion.ui.ActionDialogs;
 import java.awt.GridLayout;
@@ -45,6 +48,8 @@ public class ReplacementUI extends JPanel {
 
 	private DefaultTableModel tableModel;
 	private JTable replacementTable;
+
+	private final List<Integer> displayedReplacementIndexes = new ArrayList<>();
 
 	public ReplacementUI(ReplacementService replacementList, PersonnelService personnel, PlanningService planning) {
 
@@ -202,16 +207,18 @@ public class ReplacementUI extends JPanel {
 	}
 
 	private void removeReplacement() {
-		int index = replacementTable.getSelectedRow();
 
-		if (index == -1) {
+		int index = getSelectedReplacementIndex();
+
+		if (index < 0) {
 			JOptionPane.showMessageDialog(this, "Veuillez sélectionner un remplacement.");
 			return;
 		}
 
 		try {
-			replacementList.removeReplacement(replacementTable.convertRowIndexToModel(index));
+			replacementList.removeReplacement(index);
 			refreshTable();
+
 		} catch (UncheckedIOException | IllegalArgumentException e) {
 			ActionDialogs.error(this, e);
 		}
@@ -235,11 +242,21 @@ public class ReplacementUI extends JPanel {
 
 	private void loadTable() {
 
-		for (Replacement replacement : replacementList.getReplacements()) {
+		tableModel.setRowCount(0);
+		displayedReplacementIndexes.clear();
 
+		List<Replacement> allReplacements = replacementList.getReplacements();
+
+		for (int i = 0; i < allReplacements.size(); i++) {
+
+			Replacement replacement = allReplacements.get(i);
 			boolean linkedToAbsence = replacement.getAbsenceId() != null;
 
-			if (linkedToAbsence && planning.getInterventionsByAbsenceId(replacement.getAbsenceId()).isEmpty()) {
+			List<Intervention> group = linkedToAbsence
+					? planning.getInterventionsByAbsenceId(replacement.getAbsenceId())
+					: List.of();
+
+			if (linkedToAbsence && group.isEmpty()) {
 				continue;
 			}
 
@@ -254,11 +271,9 @@ public class ReplacementUI extends JPanel {
 			}
 
 			if (linkedToAbsence) {
-				var group = planning.getInterventionsByAbsenceId(replacement.getAbsenceId());
-				long assigned = group.stream().filter(i -> i.getEmployee() != null).count();
+				long assigned = group.stream().filter(intervention -> intervention.getEmployee() != null).count();
 
-				replacementText = group.isEmpty() ? "Ancienne demande."
-						: assigned + "/" + group.size() + " attribuées.";
+				replacementText = assigned + "/" + group.size() + " attribuées.";
 			}
 
 			String displayedEndDate = linkedToAbsence
@@ -274,6 +289,7 @@ public class ReplacementUI extends JPanel {
 					displayedEndTime };
 
 			tableModel.addRow(row);
+			displayedReplacementIndexes.add(i);
 		}
 	}
 
@@ -295,15 +311,19 @@ public class ReplacementUI extends JPanel {
 	}
 
 	private void assignSelectedGroup() {
-		int row = replacementTable.getSelectedRow();
 
 		try {
 
-			if (row < 0)
+			int index = getSelectedReplacementIndex();
+
+			if (index < 0) {
 				throw new IllegalArgumentException("Sélectionnez une demande de remplacement.");
+			}
+
 			Employee employee = (Employee) replacementEmployeeBox.getSelectedItem();
+
 			personnel.requireKnown(employee);
-			replacementList.assignUnassignedGroup(planning, replacementTable.convertRowIndexToModel(row), employee);
+			replacementList.assignUnassignedGroup(planning, index, employee);
 
 			refreshTable();
 
@@ -312,10 +332,21 @@ public class ReplacementUI extends JPanel {
 		}
 	}
 
-	public void refreshTable() {
+	private int getSelectedReplacementIndex() {
 
+		int selectedRow = replacementTable.getSelectedRow();
+
+		if (selectedRow < 0) {
+			return -1;
+		}
+
+		int modelRow = replacementTable.convertRowIndexToModel(selectedRow);
+
+		return displayedReplacementIndexes.get(modelRow);
+	}
+
+	public void refreshTable() {
 		refreshEmployeeChoices();
-		tableModel.setRowCount(0);
 		loadTable();
 	}
 }
