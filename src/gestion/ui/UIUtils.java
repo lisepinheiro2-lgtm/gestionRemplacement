@@ -5,6 +5,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.ComponentAdapter;
@@ -12,6 +13,8 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.prefs.Preferences;
+
+import javax.swing.AbstractButton;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -28,7 +31,8 @@ import javax.swing.event.DocumentListener;
 import javax.swing.plaf.basic.BasicButtonUI;
 import javax.swing.plaf.basic.BasicComboBoxUI;
 import javax.swing.text.JTextComponent;
-
+import gestion.model.EmployeeStatus;
+import java.awt.Graphics2D;
 import gestion.model.HoursAlert;
 
 public class UIUtils {
@@ -233,18 +237,24 @@ public class UIUtils {
 			component.setForeground(getTextColor());
 		}
 
-		if (component instanceof JButton) {
-			JButton button = (JButton) component;
-			button.setUI(new BasicButtonUI());
-			Object assigned = button.getClientProperty("interventionAssigned");
+		if (component instanceof JButton button) {
 
-			if (assigned instanceof Boolean) {
-				styleInterventionButton(button, (Boolean) assigned);
-			} else {
-				button.setBackground(darkMode ? new Color(48, 53, 61) : new Color(235, 239, 245));
+			if ("roundRect".equals(button.getClientProperty("JButton.buttonType"))) {
+				button.setOpaque(false);
 				button.setForeground(getTextColor());
-				button.setOpaque(true);
-				button.setContentAreaFilled(true);
+
+			} else {
+				button.setUI(new BasicButtonUI());
+				Object assigned = button.getClientProperty("interventionAssigned");
+
+				if (assigned instanceof Boolean) {
+					styleInterventionButton(button, (Boolean) assigned);
+				} else {
+					button.setBackground(darkMode ? new Color(48, 53, 61) : new Color(235, 239, 245));
+					button.setForeground(getTextColor());
+					button.setOpaque(true);
+					button.setContentAreaFilled(true);
+				}
 			}
 		}
 
@@ -315,17 +325,15 @@ public class UIUtils {
 
 	public static Color getHoursColor(HoursAlert alert) {
 		return switch (alert) {
-		case IN_PROGRESS -> new Color(0x1976D2);
-		case TARGET_REACHED -> new Color(0x43A047);
+		case IN_PROGRESS, TARGET_REACHED -> new Color(0x35D47B);
 		case WATCH -> new Color(0xFB8C00);
 		case ALERT -> new Color(0xE53935);
 		};
 	}
 
 	public static String getHoursLegend() {
-		return "<html>" + "<font color='#1976D2'>●</font> Attribution en cours<br>"
-				+ "<font color='#43A047'>●</font> Objectif atteint<br>"
-				+ "<font color='#FB8C00'>●</font> Retard d’attribution à surveiller<br>"
+		return "<html>" + "<font color='#35D47B'>●</font> Attribution en bonne voie ou objectif atteint<br>"
+				+ "<font color='#FB8C00'>●</font> Attribution à surveiller<br>"
 				+ "<font color='#E53935'>●</font> Attribution urgente ou dépassement des heures prévues" + "</html>";
 	}
 
@@ -366,5 +374,42 @@ public class UIUtils {
 		}
 
 		stripesGraphics.dispose();
+	}
+
+	public static void styleRoundedButton(AbstractButton button) {
+		button.putClientProperty("JButton.buttonType", "roundRect");
+		button.setFont(button.getFont().deriveFont(15f));
+		button.setMargin(new Insets(6, 16, 6, 16));
+	}
+
+	public static Color getStatusGlowColor(EmployeeStatus status) {
+		return switch (status) {
+		case OPERATIONAL -> new Color(0x35D47B);
+		case VACATION, SICK_LEAVE -> new Color(0xE64B55);
+		case OTHER_ABSENCE -> new Color(0xFFB74D);
+		};
+	}
+
+	public static void paintInnerGlow(Graphics2D g, Color color, int width, int height) {
+
+		if (color == null)
+			return;
+
+		int x = 6;
+		int y = 3;
+		int glowWidth = width - 12;
+		int glowHeight = height - 6;
+
+		if (glowWidth <= 10 || glowHeight <= 10)
+			return;
+
+		g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 20));
+		g.fillRoundRect(x, y, glowWidth, glowHeight, 16, 16);
+
+		for (int i = 0; i < 4; i++) {
+
+			g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 60 - i * 12));
+			g.drawRoundRect(x + i, y + i, glowWidth - 2 * i - 1, glowHeight - 2 * i - 1, 16, 16);
+		}
 	}
 }

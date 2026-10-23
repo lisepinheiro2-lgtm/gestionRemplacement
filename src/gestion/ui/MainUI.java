@@ -83,7 +83,8 @@ public class MainUI {
 		mainPanel = new JPanel(cardLayout);
 		homePanel = createHomePanel();
 		personnelPanel = new PersonnelPanel(
-				new PersonnelController(personnel, absenceList, new WorkHoursService(planning)), planning);
+				new PersonnelController(personnel, absenceList, new WorkHoursService(planning)), planning,
+				recurringInterventionList);
 		planningPanel = new PlanningUI(planning, personnel, clients, recurringInterventionList);
 		replacementPanel = new ReplacementUI(replacementList, personnel, planning);
 		clientPanel = new ClientUI(clients);

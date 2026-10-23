@@ -54,6 +54,7 @@ public final class PersonnelTableModel extends AbstractTableModel {
 
 	@Override
 	public Object getValueAt(int row, int column) {
+		
 		EmployeeSummary values = rows.get(row);
 
 		return switch (column) {

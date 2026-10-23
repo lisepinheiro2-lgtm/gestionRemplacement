@@ -205,6 +205,8 @@ public final class PlanningInterventionDialogs {
 		startDateField.setText(FormatUtils.formatDate(initialDate));
 		endDateField.setText(FormatUtils.formatDate(initialDate));
 		dayBox.setSelectedIndex(initialDate.getDayOfWeek().getValue() - 1);
+		endTimeField.setToolTipText("Si la fin précède le début, l'intervention se termine le lendemain.");
+		endDateField.setToolTipText("Dernier jour de départ possible des occurrences, y compris celles finissant le lendemain.");
 
 		if (initialTime != null) {
 			startTimeField.setText(FormatUtils.formatTime(initialTime));
@@ -253,8 +255,8 @@ public final class PlanningInterventionDialogs {
 					continue;
 				}
 
-				if (!endTime.isAfter(startTime)) {
-					JOptionPane.showMessageDialog(parent, "L'heure de fin doit être postérieure à l'heure de début.");
+				if (endTime.equals(startTime)) {
+					JOptionPane.showMessageDialog(parent, "Les heures de début et de fin doivent être différentes.");
 					continue;
 				}
 

@@ -1,313 +1,322 @@
 package gestion.ui.personnel;
 
+import java.awt.AlphaComposite;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dialog.ModalityType;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Graphics2D;
+import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JDialog;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
-import javax.swing.JTable;
 import javax.swing.JToggleButton;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+
+import com.formdev.flatlaf.icons.FlatSearchIcon;
 
 import gestion.model.DateRange;
 import gestion.model.Employee;
 import gestion.model.Intervention;
+import gestion.service.InterventionAssignmentService;
+import gestion.service.InterventionAssignmentService.Plan;
 import gestion.service.PlanningService;
-import gestion.util.FormatUtils;
+import gestion.service.RecurringInterventionService;
+import gestion.service.WorkHoursService;
+import gestion.ui.UIUtils;
 
 public class PersonnelInterventionsDialog {
 
 	private final PlanningService planning;
 	private final Runnable onChange;
-	private JTable table1;
-	private JTable table2;
-	private JTable table3;
+	private final InterventionAssignmentService assignments;
+	private final WorkHoursService hours;
+	private final PersonnelInterventionsTable[] tables = new PersonnelInterventionsTable[3];
 	private JDialog dialog;
-	private List<Intervention> unassignedInterventions;
-	private List<Intervention> assignedInterventions;
-	private List<Intervention> otherAssignedInterventions;
+	private AssignmentImpactPanel impact;
+	private JButton validate;
+	private JTextField search;
+	private Timer searchDelay;
+	private Employee employee;
+	private DateRange period;
+	private int activeTab;
+	private boolean refreshing;
 
 	public PersonnelInterventionsDialog(PlanningService planning, Runnable onChange) {
+		this(planning, null, onChange);
+	}
+
+	public PersonnelInterventionsDialog(PlanningService planning, RecurringInterventionService recurring,
+			Runnable onChange) {
 		this.planning = planning;
 		this.onChange = onChange;
+		assignments = new InterventionAssignmentService(planning, recurring);
+		hours = new WorkHoursService(planning);
 	}
 
-	private void fillTable(List<Intervention> interventions, boolean intervenantsColumn, DefaultTableModel model) {
+	public void open(Employee employee, DateRange period, boolean assignedHours, Component parent) {
+		this.employee = employee;
+		this.period = period;
+		dialog = new JDialog(SwingUtilities.getWindowAncestor(parent), "Interventions",
+				ModalityType.APPLICATION_MODAL);
+		dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
-		for (Intervention intervention : interventions) {
-
-			String[] row;
-			String clientFullName = intervention.getClient().getLastName() + " "
-					+ intervention.getClient().getFirstName();
-			String date = FormatUtils.formatDate(intervention.getStartDate());
-
-			if (!intervention.getStartDate().equals(intervention.getEndDate())) {
-				date = date + " - " + FormatUtils.formatDate(intervention.getEndDate());
-			}
-
-			String hours = intervention.getStartTime() + " - " + intervention.getEndTime();
-
-			if (!intervenantsColumn) {
-				row = new String[] { clientFullName, date, hours };
-			} else {
-				String employeeFullName = intervention.getEmployee().getLastName() + " "
-						+ intervention.getEmployee().getFirstName();
-				row = new String[] { clientFullName, employeeFullName, date, hours };
-			}
-
-			model.addRow(row);
-		}
-	}
-
-	private JTable createInterventionsTable(List<Intervention> interventions, boolean intervenantsColumn) {
-
-		DefaultTableModel interventionsTable = new DefaultTableModel() {
-			@Override
-			public boolean isCellEditable(int row, int column) {
-				return false;
-			}
-		};
-
-		interventionsTable.addColumn("Client");
-
-		if (intervenantsColumn) {
-			interventionsTable.addColumn("Intervenant");
-		}
-
-		interventionsTable.addColumn("Dates");
-		interventionsTable.addColumn("Horaires");
-
-		int dateColumnIndex = intervenantsColumn ? 2 : 1;
-		fillTable(interventions, intervenantsColumn, interventionsTable);
-		JTable table = new JTable(interventionsTable);
-		DefaultTableCellRenderer centeredRenderer = new DefaultTableCellRenderer();
-		centeredRenderer.setHorizontalAlignment(JLabel.CENTER);
-
-		for (int i = 0; i < table.getColumnCount(); i++) {
-			table.getColumnModel().getColumn(i).setCellRenderer(centeredRenderer);
-		}
-
-		table.getColumnModel().getColumn(dateColumnIndex).setPreferredWidth(240);
-
-		return table;
-	}
-
-	private void refreshTables(Employee employee, DateRange period) {
-
-		unassignedInterventions = planning.getUnassignedInterventionsForPeriod(period);
-		assignedInterventions = planning.getAssignedInterventionsForPeriod(period, employee);
-		otherAssignedInterventions = planning.getOtherAssignedInterventionsForPeriod(period, employee);
-
-		DefaultTableModel model = (DefaultTableModel) table1.getModel();
-		model.setRowCount(0);
-		fillTable(unassignedInterventions, false, model);
-
-		model = (DefaultTableModel) table2.getModel();
-		model.setRowCount(0);
-		fillTable(assignedInterventions, false, model);
-
-		model = (DefaultTableModel) table3.getModel();
-		model.setRowCount(0);
-		fillTable(otherAssignedInterventions, true, model);
-
-	}
-
-	public void open(Employee employee, DateRange period, boolean attribuateHours, Component parent) {
-
-		unassignedInterventions = planning.getUnassignedInterventionsForPeriod(period);
-		table1 = createInterventionsTable(unassignedInterventions, false);
-
-		JPanel freePanel = new JPanel(new BorderLayout());
-		freePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-		JScrollPane freeScrollPane = new JScrollPane(table1);
-		freePanel.add(freeScrollPane, BorderLayout.CENTER);
-
-		JToggleButton freeButton = new JToggleButton("Libres");
-		freeButton.putClientProperty("JButton.buttonType", "roundRect");
-		freeButton.setFont(freeButton.getFont().deriveFont(18f));
-		freeButton.setMargin(new Insets(10, 24, 10, 24));
-
-		assignedInterventions = planning.getAssignedInterventionsForPeriod(period, employee);
-		table2 = createInterventionsTable(assignedInterventions, false);
-
-		JPanel attribuatePanel = new JPanel(new BorderLayout());
-		attribuatePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-		JScrollPane attribuateScrollPane = new JScrollPane(table2);
-		attribuatePanel.add(attribuateScrollPane, BorderLayout.CENTER);
-
-		JToggleButton attribuateButton = new JToggleButton(
-				"Attribuées à " + employee.getFirstName() + " " + employee.getLastName());
-		attribuateButton.putClientProperty("JButton.buttonType", "roundRect");
-		attribuateButton.setFont(freeButton.getFont().deriveFont(18f));
-		attribuateButton.setMargin(new Insets(10, 24, 10, 24));
-
-		otherAssignedInterventions = planning.getOtherAssignedInterventionsForPeriod(period, employee);
-		table3 = createInterventionsTable(otherAssignedInterventions, true);
-
-		JPanel otherEmployee = new JPanel(new BorderLayout());
-		otherEmployee.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-		JScrollPane otherEmployeeScrollPane = new JScrollPane(table3);
-		otherEmployee.add(otherEmployeeScrollPane, BorderLayout.CENTER);
-
-		JToggleButton otherButton = new JToggleButton("Attribuées à d'autres Employés");
-		otherButton.putClientProperty("JButton.buttonType", "roundRect");
-		otherButton.setFont(freeButton.getFont().deriveFont(18f));
-		otherButton.setMargin(new Insets(10, 24, 10, 24));
-
-		ButtonGroup buttons = new ButtonGroup();
-		buttons.add(freeButton);
-		buttons.add(attribuateButton);
-		buttons.add(otherButton);
-
-		JPanel buttonsTitlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 15));
-		buttonsTitlePanel.add(freeButton);
-		buttonsTitlePanel.add(attribuateButton);
-		buttonsTitlePanel.add(otherButton);
-
-		CardLayout cardLayout = new CardLayout();
-		JPanel cardsPanel = new JPanel(cardLayout);
-
-		cardsPanel.add(freePanel, "FREE");
-		cardsPanel.add(attribuatePanel, "ASSIGNED");
-		cardsPanel.add(otherEmployee, "OTHERS");
-
-		JDialog dialog = new JDialog();
-		dialog.setTitle("Interventions : ");
-		dialog.setModal(true);
-
-		dialog.add(buttonsTitlePanel, BorderLayout.NORTH);
-		dialog.add(cardsPanel, BorderLayout.CENTER);
-
-		JPanel buttonPanel = new JPanel();
-		JButton validate = new JButton(attribuateHours ? "Désattribuer" : "Attribuer");
-		JButton cancel = new JButton("Annuler");
-
-		buttonPanel.add(validate);
-		buttonPanel.add(cancel);
-		dialog.add(buttonPanel, BorderLayout.SOUTH);
-
-		freeButton.addActionListener(e -> {
-			cardLayout.show(cardsPanel, "FREE");
-			validate.setText("Attribuer");
-		});
-
-		attribuateButton.addActionListener(e -> {
-			cardLayout.show(cardsPanel, "ASSIGNED");
-			validate.setText("Désattribuer");
-		});
-
-		otherButton.addActionListener(e -> {
-			cardLayout.show(cardsPanel, "OTHERS");
-			validate.setText("Réattribuer");
-		});
-
-		if (attribuateHours) {
-			attribuateButton.setSelected(true);
-			cardLayout.show(cardsPanel, "ASSIGNED");
-		} else {
-			freeButton.setSelected(true);
-			cardLayout.show(cardsPanel, "FREE");
-		}
-
-		cancel.addActionListener(e -> dialog.dispose());
-		validate.addActionListener(e -> {
-			int selectedIndex;
-
-			if (freeButton.isSelected()) {
-				selectedIndex = 0;
-			} else if (attribuateButton.isSelected()) {
-				selectedIndex = 1;
-			} else {
-				selectedIndex = 2;
-			}
-
-			validate(selectedIndex, employee, period);
-		});
-
-		dialog.setPreferredSize(new Dimension(900, 600));
+		dialog.setContentPane(createContent(assignedHours));
+		dialog.setMinimumSize(new Dimension(860, 560));
+		dialog.setPreferredSize(new Dimension(1140, 730));
 		dialog.pack();
 		dialog.setLocationRelativeTo(parent);
-		dialog.setVisible(true);
-	}
-
-	private List<Intervention> getSelectedInterventions(List<Intervention> interventions, JTable table) {
-
-		int[] selectedIndexes = table.getSelectedRows();
-		List<Intervention> selectedInterventions = new ArrayList<>();
-
-		for (int selectedIndex : selectedIndexes) {
-			selectedInterventions.add(interventions.get(table.convertRowIndexToModel(selectedIndex)));
-		}
-
-		return selectedInterventions;
-	}
-
-	private void validate(int index, Employee employee, DateRange period) {
-
-		List<Intervention> selectedInterventions;
-		boolean result = false;
+		Timer availability = new Timer(1000, event -> refreshAvailability());
+		availability.start();
 
 		try {
-			switch (index) {
+			dialog.setVisible(true);
+		} finally {
+			availability.stop();
+			searchDelay.stop();
+		}
+	}
 
-			case 0:
-				selectedInterventions = getSelectedInterventions(unassignedInterventions, table1);
+	private void refreshAvailability() {
+		boolean changed = false;
+		refreshing = true;
 
-				if (!selectedInterventions.isEmpty()) {
-					planning.assignEmployee(selectedInterventions, employee);
-					result = true;
-				}
+		try {
+			for (PersonnelInterventionsTable table : tables)
+				changed |= table.hideStartedInterventions();
+		} finally {
+			refreshing = false;
+		}
 
-				break;
+		if (changed)
+			updateImpact();
+	}
 
-			case 1:
-				selectedInterventions = getSelectedInterventions(assignedInterventions, table2);
+	private JPanel createContent(boolean assignedHours) {
 
-				if (!selectedInterventions.isEmpty()) {
-					planning.unassignEmployee(selectedInterventions);
-					result = true;
-				}
+		JPanel content = new JPanel(new BorderLayout(0, 4));
+		content.setBorder(BorderFactory.createEmptyBorder(12, 14, 8, 14));
+		CardLayout layout = new CardLayout();
+		JPanel cards = new JPanel(layout);
+		JPanel tabs = new JPanel(new GridLayout(1, 3, 18, 0));
+		tabs.setBorder(BorderFactory.createEmptyBorder(2, 0, 6, 0));
+		String[] labels = { "Libres", "Attribuées à " + employee, "Attribuées à d'autres employés" };
+		ButtonGroup group = new ButtonGroup();
+		JToggleButton[] buttons = new JToggleButton[3];
 
-				break;
+		for (int index = 0; index < tables.length; index++) {
+			int tab = index;
+			tables[index] = new PersonnelInterventionsTable(planning, index == 2, index != 1);
+			tables[index].getSelectionModel().addListSelectionListener(event -> {
+				if (!event.getValueIsAdjusting() && !refreshing)
+					updateImpact();
+			});
+			tables[index].getRowSorter().addRowSorterListener(event -> SwingUtilities.invokeLater(() -> {
+				if (!refreshing)
+					updateImpact();
+			}));
+			JScrollPane scroll = new JScrollPane(tables[index]);
+			scroll.setColumnHeaderView(tables[index].getTableHeader());
+			cards.add(scroll, Integer.toString(index));
 
-			case 2:
-				selectedInterventions = getSelectedInterventions(otherAssignedInterventions, table3);
+			buttons[index] = new JToggleButton(labels[index]);
+			UIUtils.styleRoundedButton(buttons[index]);
+			buttons[index].setPreferredSize(new Dimension(0, 40));
+			buttons[index].addActionListener(event -> {
+				activeTab = tab;
+				layout.show(cards, Integer.toString(tab));
+				updateImpact();
+			});
+			group.add(buttons[index]);
+			tabs.add(buttons[index]);
+		}
 
-				if (!selectedInterventions.isEmpty()) {
-					planning.assignEmployee(selectedInterventions, employee);
-					result = true;
-				}
+		content.add(tabs, BorderLayout.NORTH);
+		content.add(cards, BorderLayout.CENTER);
+		content.add(createFooter(), BorderLayout.SOUTH);
+		activeTab = assignedHours ? 1 : 0;
+		buttons[activeTab].setSelected(true);
+		layout.show(cards, Integer.toString(activeTab));
+		refreshTables();
+		UIUtils.applyTheme(content);
+		return content;
+	}
 
-				break;
+	private JPanel createFooter() {
+		JPanel footer = new JPanel(new BorderLayout(0, 8));
+		impact = new AssignmentImpactPanel(hours, 116);
+		impact.addHeaderAccessory(createSearchField());
+		footer.add(impact, BorderLayout.CENTER);
+		JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 24, 8));
+		validate = new JButton();
+		JButton cancel = new JButton("Annuler");
+		UIUtils.styleRoundedButton(validate);
+		UIUtils.styleRoundedButton(cancel);
+		validate.addActionListener(event -> validateSelection());
+		cancel.addActionListener(event -> dialog.dispose());
+		actions.add(validate);
+		actions.add(cancel);
+		footer.add(actions, BorderLayout.SOUTH);
+		return footer;
+	}
+
+	private JTextField createSearchField() {
+		search = new JTextField(20);
+		search.putClientProperty("JComponent.roundRect", true);
+		search.putClientProperty("FlatLaf.style", "borderWidth: 1.5; "
+				+ "[dark]borderColor: #648D9F; [light]borderColor: #5E879C; "
+				+ "[dark]focusedBorderColor: #62D3FF; [light]focusedBorderColor: #087FAC; focusColor: #339FCA");
+		search.putClientProperty("JTextField.leadingIcon", new AzureSearchIcon());
+		search.putClientProperty("JTextField.placeholderText", "Date, nom ou prénom…");
+		search.putClientProperty("JTextField.showClearButton", true);
+		search.setToolTipText("Client ou intervenant : nom et prénom dans les deux ordres. "
+				+ "Dates : dd/MM, dd-MM, dd/MM/aaaa, dd-MM-aaaa, dd/MM/aa ou dd-MM-aa.");
+		search.getAccessibleContext().setAccessibleName("Rechercher une intervention par date ou par nom");
+		searchDelay = new Timer(150, event -> refreshTables());
+		searchDelay.setRepeats(false);
+		UIUtils.addTextChangeListener(search, searchDelay::restart);
+		search.addActionListener(event -> {
+			searchDelay.stop();
+			refreshTables();
+		});
+		return search;
+	}
+
+	private Employee destination() {
+		return activeTab == 1 ? null : employee;
+	}
+
+	private void updateImpact() {
+		if (impact == null)
+			return;
+
+		List<Intervention> selected = tables[activeTab].selectedInterventions();
+		impact.showImpact(selected, destination(), period, "occurrences sélectionnées");
+		validate.setText(switch (activeTab) {
+		case 0 -> "Attribuer à " + employee;
+		case 1 -> "Désattribuer";
+		default -> "Réattribuer à " + employee;
+		});
+		validate.setEnabled(!selected.isEmpty());
+	}
+
+	private void refreshTables() {
+		refreshing = true;
+
+		try {
+			var filter = InterventionSearch.filter(search.getText());
+			tables[0].showInterventions(planning.getUnassignedInterventionsForPeriod(period).stream()
+					.filter(filter).toList());
+			tables[1].showInterventions(planning.getAssignedInterventionsForPeriod(period, employee).stream()
+					.filter(filter).toList());
+			tables[2].showInterventions(planning.getOtherAssignedInterventionsForPeriod(period, employee).stream()
+					.filter(filter).toList());
+		} finally {
+			refreshing = false;
+		}
+
+		updateImpact();
+	}
+
+	private void validateSelection() {
+		searchDelay.stop();
+		refreshTables();
+		List<Intervention> selected = tables[activeTab].selectedInterventions();
+
+		if (selected.isEmpty())
+			return;
+
+		try {
+			Plan initial = assignments.preview(selected, destination(), false);
+			boolean recurring = selected.stream().anyMatch(i -> i.getRecurringId() != null);
+			Plan plan = recurring ? reviewSelection(selected) : initial;
+
+			if (plan == null)
+				return;
+
+			assignments.apply(plan);
+			onChange.run();
+			refreshTables();
+		} catch (IllegalArgumentException | IllegalStateException exception) {
+			refreshTables();
+			JOptionPane.showMessageDialog(dialog, exception.getMessage(), "Opération impossible",
+					JOptionPane.ERROR_MESSAGE);
+		} catch (UncheckedIOException exception) {
+			JOptionPane.showMessageDialog(dialog,
+					"La sauvegarde a échoué. Aucun changement du lot n'a été conservé.",
+					"Échec de l'opération", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	private Plan reviewSelection(List<Intervention> selected) {
+		boolean recurring = selected.stream().anyMatch(i -> i.getRecurringId() != null);
+		JDialog warning = new JDialog(dialog, recurring
+				? "Interventions récurrentes — choix obligatoire" : "Conflits d'attribution", true);
+		warning.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+		Plan[] result = { null };
+		AssignmentReviewPanel review = new AssignmentReviewPanel(assignments, hours, selected, destination(), period,
+				plan -> {
+					result[0] = plan;
+					warning.dispose();
+				}, warning::dispose);
+		warning.setContentPane(review);
+		warning.pack();
+		Rectangle screen = warning.getGraphicsConfiguration().getBounds();
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(warning.getGraphicsConfiguration());
+		int width = Math.min(1060, screen.width - insets.left - insets.right - 24);
+		int height = Math.min(680, screen.height - insets.top - insets.bottom - 24);
+		warning.setMinimumSize(new Dimension(Math.min(920, width), Math.min(580, height)));
+		warning.setSize(width, height);
+		warning.setLocationRelativeTo(dialog);
+		warning.setVisible(true);
+		return result[0];
+	}
+
+	private static final class AzureSearchIcon extends FlatSearchIcon {
+
+		private static final Color DARK_AZURE = new Color(0x62D3FF);
+		private static final Color LIGHT_AZURE = new Color(0x087FAC);
+
+		AzureSearchIcon() {
+			super(true);
+		}
+
+		@Override
+		protected void paintIcon(Component component, Graphics2D graphics) {
+			boolean dark = UIUtils.isDarkMode();
+			searchIconColor = dark ? DARK_AZURE : LIGHT_AZURE;
+			Graphics2D glow = (Graphics2D) graphics.create();
+
+			try {
+				glow.setComposite(AlphaComposite.SrcOver.derive(dark ? 0.10f : 0.06f));
+				glow.translate(-0.65, 0);
+				super.paintIcon(component, glow);
+				glow.translate(1.3, 0);
+				super.paintIcon(component, glow);
+				glow.translate(-0.65, -0.65);
+				super.paintIcon(component, glow);
+				glow.translate(0, 1.3);
+				super.paintIcon(component, glow);
+			} finally {
+				glow.dispose();
 			}
 
-		} catch (IllegalArgumentException e) {
-			JOptionPane.showMessageDialog(dialog, e.getMessage(), "Opération impossible", JOptionPane.ERROR_MESSAGE);
-		} catch (UncheckedIOException e) {
-			JOptionPane.showMessageDialog(dialog, "La sauvegarde a échoué. L'opération n'a pas pu être finalisée.",
-					"Echec de l'opération", JOptionPane.ERROR_MESSAGE);
-		}
-		if (result) {
-			onChange.run();
-			refreshTables(employee, period);
+			super.paintIcon(component, graphics);
 		}
 	}
 }

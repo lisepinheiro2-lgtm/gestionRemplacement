@@ -171,40 +171,77 @@ public final class WorkHoursService {
 		return Duration.between(countedStart, countedEnd).toMinutes() / 60.0;
 	}
 
+	public double getProjectedHours(Employee employee, LocalDate date, boolean monthly,
+			List<Intervention> targets, Employee destination) {
+		return getProjectedHours(employee, date, monthly, targets, destination, List.of());
+	}
+
+	public double getProjectedHours(Employee employee, LocalDate date, boolean monthly,
+			List<Intervention> targets, Employee destination, List<Intervention> releases) {
+
+		LocalDate start = monthly ? date.withDayOfMonth(1) : date.with(DayOfWeek.MONDAY);
+		LocalDate end = monthly ? start.plusMonths(1) : start.plusWeeks(1);
+		double hours = monthly ? getMonthlyHours(employee, date) : getWeeklyHours(employee, date);
+
+		for (Intervention intervention : new java.util.LinkedHashSet<>(targets)) {
+			double portion = getInterventionHoursInPeriod(intervention, start.atStartOfDay(), end.atStartOfDay());
+
+			if (intervention.getEmployee() == employee)
+				hours -= portion;
+
+			if (destination == employee)
+				hours += portion;
+		}
+
+		for (Intervention release : new java.util.LinkedHashSet<>(releases)) {
+			if (release.getEmployee() == employee && !targets.contains(release))
+				hours -= getInterventionHoursInPeriod(release, start.atStartOfDay(), end.atStartOfDay());
+		}
+
+		return hours;
+	}
+
 	public HoursAlert getHoursAlert(Employee employee, LocalDate date, boolean monthly) {
-		double expectedHours = monthly ? employee.getContractHours() * 52 / 12 : employee.getContractHours();
+
 		double assignedHours = monthly ? getMonthlyHours(employee, date) : getWeeklyHours(employee, date);
+		return getHoursAlert(employee, date, monthly, assignedHours);
+	}
+
+	public HoursAlert getHoursAlert(Employee employee, LocalDate date, boolean monthly, double assignedHours) {
+
+		double expectedHours = monthly ? employee.getContractHours() * 52 / 12 : employee.getContractHours();
 		long remainingMinutes = Math.round((expectedHours - assignedHours) * 60);
 
-		if (remainingMinutes < 0) {
+		if (remainingMinutes < 0)
 			return HoursAlert.ALERT;
-		}
 
-		if (remainingMinutes == 0 && expectedHours > 0) {
-			return HoursAlert.TARGET_REACHED;
-		}
-
-		if (expectedHours <= 0) {
+		if (expectedHours <= 0)
 			return HoursAlert.IN_PROGRESS;
-		}
+
+		if (remainingMinutes == 0)
+			return HoursAlert.TARGET_REACHED;
+
+		double assignedRatio = assignedHours / expectedHours;
+
+		if (assignedRatio < 0.40)
+			return HoursAlert.ALERT;
 
 		LocalDate periodStart = monthly ? date.withDayOfMonth(1)
 				: date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
 		LocalDate periodEnd = monthly ? periodStart.plusMonths(1) : periodStart.plusWeeks(1);
+
 		long periodDays = ChronoUnit.DAYS.between(periodStart, periodEnd);
 		long remainingDays = ChronoUnit.DAYS.between(LocalDate.now(clock), periodEnd);
 		remainingDays = Math.max(0, Math.min(periodDays, remainingDays));
-		double remainingTimeRatio = remainingDays / (double) periodDays;
-		double remainingHoursRatio = (remainingMinutes / 60.0) / expectedHours;
-		boolean nearPeriodEnd = monthly ? remainingTimeRatio <= 0.20 : remainingDays <= 3;
+		boolean nearPeriodEnd = monthly ? remainingDays <= periodDays * 0.20 : remainingDays <= 3;
 
-		if (remainingDays == 0 || (nearPeriodEnd && remainingHoursRatio > 0.25)) {
+		if (nearPeriodEnd)
 			return HoursAlert.ALERT;
-		}
 
-		if (remainingHoursRatio > remainingTimeRatio + 0.15) {
+		long elapsedDays = periodDays - remainingDays;
+
+		if (assignedRatio <= 0.60 || elapsedDays >= periodDays / 3)
 			return HoursAlert.WATCH;
-		}
 		return HoursAlert.IN_PROGRESS;
 	}
 }

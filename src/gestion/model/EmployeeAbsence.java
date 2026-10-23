@@ -1,6 +1,7 @@
 package gestion.model;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 public class EmployeeAbsence {
@@ -10,13 +11,38 @@ public class EmployeeAbsence {
     private EmployeeStatus status;
     private LocalDate startDate;
     private LocalDate endDate;
+    private final LocalTime startTime;
+    private LocalTime endTime;
 
     public EmployeeAbsence(Employee employee, EmployeeStatus status, LocalDate startDate, LocalDate endDate) {
-        super();
+        this(employee, status, startDate, endDate, LocalTime.MIDNIGHT);
+    }
+
+    public EmployeeAbsence(Employee employee, EmployeeStatus status, LocalDate startDate, LocalDate endDate,
+            LocalTime startTime) {
+        this(employee, status, startDate, endDate, startTime, null);
+    }
+
+    public EmployeeAbsence(Employee employee, EmployeeStatus status, LocalDate startDate, LocalDate endDate,
+            LocalTime startTime, LocalTime endTime) {
         this.employee = employee;
         this.status = status;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
+
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+
+    public LocalTime getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
     }
 
     public String getId() {

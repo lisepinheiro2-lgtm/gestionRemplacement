@@ -67,6 +67,8 @@ public final class InterventionCreationDialogs {
 		JTextField endTimeField = new JTextField();
 		JTextField startDateField = new JTextField();
 		JTextField endDateField = new JTextField();
+		endTimeField.setToolTipText("Si la fin précède le début, l'intervention se termine le lendemain.");
+		endDateField.setToolTipText("Dernier jour de départ possible des occurrences, y compris celles finissant le lendemain.");
 
 		formPanel.add(new JLabel("Client :"));
 		formPanel.add(clientBox);
@@ -112,8 +114,8 @@ public final class InterventionCreationDialogs {
 					continue;
 				}
 
-				if (!endTime.isAfter(startTime)) {
-					JOptionPane.showMessageDialog(parent, "L'heure de fin doit être postérieure à l'heure de début.");
+				if (endTime.equals(startTime)) {
+					JOptionPane.showMessageDialog(parent, "Les heures de début et de fin doivent être différentes.");
 					continue;
 				}
 

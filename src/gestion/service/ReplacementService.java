@@ -237,15 +237,18 @@ public class ReplacementService {
 					}
 				}
 
-				String startDate = FormatUtils.formatDate(absence.getStartDate());
-				String endDate = FormatUtils.formatDate(absence.getEndDate().plusDays(1));
+				var period = DomainValidation.absencePeriod(absence);
+				String startDate = FormatUtils.formatDate(period.start().toLocalDate());
+				String startTime = FormatUtils.formatTime(period.start().toLocalTime());
+				String endDate = FormatUtils.formatDate(period.end().toLocalDate());
+				String endTime = FormatUtils.formatTime(period.end().toLocalTime());
 
 				if (linkedReplacement == null) {
 
 					Employee employee = absence.getEmployee();
 
 					linkedReplacement = new Replacement(employee, employee.getContractHours(), null, 0, startDate,
-							"00h00", endDate, "00h00");
+							startTime, endDate, endTime);
 
 					linkedReplacement.setAbsenceId(absence.getId());
 					replacements.add(linkedReplacement);
@@ -253,9 +256,9 @@ public class ReplacementService {
 				} else {
 
 					linkedReplacement.setStartDate(startDate);
-					linkedReplacement.setStartTime("00h00");
+					linkedReplacement.setStartTime(startTime);
 					linkedReplacement.setEndDate(endDate);
-					linkedReplacement.setEndTime("00h00");
+					linkedReplacement.setEndTime(endTime);
 				}
 			}
 

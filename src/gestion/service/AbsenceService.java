@@ -1,9 +1,13 @@
 package gestion.service;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.List;
 
 import gestion.model.Employee;
 import gestion.model.EmployeeAbsence;
@@ -11,7 +15,6 @@ import gestion.model.EmployeeStatus;
 import gestion.repository.AbsenceCsvRepository;
 import gestion.repository.CsvStore;
 import gestion.util.DomainValidation;
-import java.io.UncheckedIOException;
 
 public class AbsenceService {
 
@@ -47,8 +50,7 @@ public class AbsenceService {
 				throw new IOException("La demande ne correspond pas au salarié absent.");
 			}
 
-			var expected = new gestion.model.DateTimeRange(absence.getStartDate().atStartOfDay(),
-					absence.getEndDate().plusDays(1).atStartOfDay());
+			var expected = DomainValidation.absencePeriod(absence);
 
 			if (!expected.equals(DomainValidation.replacement(request))) {
 				throw new IOException("Période de remplacement incohérente.");
@@ -74,8 +76,9 @@ public class AbsenceService {
 
 			var range = DomainValidation.intervention(intervention);
 
-			if (range.start().isBefore(source.getStartDate().atStartOfDay())
-					|| range.end().isAfter(source.getEndDate().plusDays(1).atStartOfDay())) {
+			var sourcePeriod = DomainValidation.absencePeriod(source);
+
+			if (range.start().isBefore(sourcePeriod.start()) || range.end().isAfter(sourcePeriod.end())) {
 				throw new IOException("Intervention hors de sa période d'absence.");
 			}
 		}
@@ -98,8 +101,10 @@ public class AbsenceService {
 
 		ArrayList<EmployeeAbsence> previous = new ArrayList<>(absences);
 		ArrayList<LocalDate> ends = new ArrayList<>();
+		ArrayList<LocalTime> endTimes = new ArrayList<>();
 
 		previous.forEach(absence -> ends.add(absence.getEndDate()));
+		previous.forEach(absence -> endTimes.add(absence.getEndTime()));
 
 		Runnable restore = () -> {
 			absences.clear();
@@ -107,6 +112,7 @@ public class AbsenceService {
 
 			for (int i = 0; i < previous.size(); i++) {
 				previous.get(i).setEndDate(ends.get(i));
+				previous.get(i).setEndTime(endTimes.get(i));
 			}
 		};
 
@@ -157,8 +163,7 @@ public class AbsenceService {
 		personnel.protectReferences(employee -> absences.stream().anyMatch(a -> a.getEmployee() == employee));
 		planning.setAbsenceCheck((employee, period) -> absences.stream()
 				.anyMatch(a -> a.getEmployee() == employee
-						&& gestion.util.PeriodUtils.hasDateTimeOverlap(period, new gestion.model.DateTimeRange(
-								a.getStartDate().atStartOfDay(), a.getEndDate().plusDays(1).atStartOfDay()))));
+						&& gestion.util.PeriodUtils.hasDateTimeOverlap(period, DomainValidation.absencePeriod(a))));
 		validateLinks();
 	}
 
@@ -175,6 +180,20 @@ public class AbsenceService {
 		return EmployeeStatus.OPERATIONAL;
 	}
 
+	public EmployeeStatus getStatusAt(Employee employee, LocalDateTime dateTime) {
+		for (EmployeeAbsence absence : absences) {
+			if (absence.getEmployee() != employee)
+				continue;
+
+			var period = DomainValidation.absencePeriod(absence);
+
+			if (!dateTime.isBefore(period.start()) && dateTime.isBefore(period.end()))
+				return absence.getStatus();
+		}
+
+		return EmployeeStatus.OPERATIONAL;
+	}
+
 	public void resumeEmployee(Employee employee, LocalDate date) throws IOException {
 
 		personnel.requireKnown(employee);
@@ -186,9 +205,7 @@ public class AbsenceService {
 
 			if (absence.getEmployee() == employee && !date.isBefore(absence.getStartDate())
 					&& !date.isAfter(absence.getEndDate())) {
-				if (!planning.getInterventionsByAbsenceId(absence.getId()).isEmpty())
-					throw new IllegalArgumentException(
-							"Reprise temporairement bloquée : des interventions sont liées à cette absence. Le rétablissement des affectations doit être décidé sans annuler les remplacements existants.");
+				ensureResumeAllowed(absence);
 
 				change(() -> {
 					if (date.equals(absence.getStartDate()))
@@ -201,7 +218,58 @@ public class AbsenceService {
 		}
 	}
 
+	public void resumeEmployeeAt(Employee employee, LocalDateTime dateTime) throws IOException {
+		personnel.requireKnown(employee);
+
+		if (dateTime == null)
+			throw new IllegalArgumentException("Date et heure de reprise manquantes.");
+
+		for (EmployeeAbsence absence : absences) {
+			var period = DomainValidation.absencePeriod(absence);
+
+			if (absence.getEmployee() != employee || dateTime.isBefore(period.start()) || !dateTime.isBefore(period.end()))
+				continue;
+
+			ensureResumeAllowed(absence);
+			change(() -> {
+				if (dateTime.equals(period.start())) {
+					absences.remove(absence);
+				} else {
+					absence.setEndDate(dateTime.toLocalDate());
+					absence.setEndTime(dateTime.toLocalTime());
+				}
+			});
+			return;
+		}
+	}
+
+	private void ensureResumeAllowed(EmployeeAbsence absence) {
+		if (!planning.getInterventionsByAbsenceId(absence.getId()).isEmpty())
+			throw new IllegalArgumentException(
+					"Reprise temporairement bloquée : des interventions sont liées à cette absence. Le rétablissement des affectations doit être décidé sans annuler les remplacements existants.");
+	}
+
 	public void addAbsence(EmployeeAbsence absence) throws IOException {
+		validateNewAbsence(absence);
+		change(() -> absences.add(absence), () -> planning.releaseForAbsence(absence));
+	}
+
+	public List<PlanningService.AbsenceRelease> previewTimedAbsence(EmployeeAbsence absence) {
+		validateNewAbsence(absence);
+		return planning.previewAbsenceReleases(absence, true);
+	}
+
+	public void addTimedAbsence(EmployeeAbsence absence, List<PlanningService.AbsenceRelease> approved) throws IOException {
+		List<PlanningService.AbsenceRelease> current = previewTimedAbsence(absence);
+
+		if (approved == null || !current.equals(approved))
+			throw new IllegalArgumentException("Le planning a changé : vérifiez à nouveau les créneaux à libérer.");
+
+		List<PlanningService.AbsenceRelease> confirmed = List.copyOf(approved);
+		change(() -> absences.add(absence), () -> planning.releaseForConfirmedAbsence(absence, confirmed));
+	}
+
+	private void validateNewAbsence(EmployeeAbsence absence) {
 
 		DomainValidation.absence(absence);
 		personnel.requireKnown(absence.getEmployee());
@@ -212,14 +280,11 @@ public class AbsenceService {
 				throw new IllegalArgumentException("Une absence identique existe déjà.");
 			}
 
-			if (existing.getEmployee() == absence.getEmployee()
-					&& !absence.getEndDate().isBefore(existing.getStartDate())
-					&& !absence.getStartDate().isAfter(existing.getEndDate())) {
+			if (existing.getEmployee() == absence.getEmployee() && gestion.util.PeriodUtils.hasDateTimeOverlap(
+					DomainValidation.absencePeriod(existing), DomainValidation.absencePeriod(absence))) {
 				throw new IllegalArgumentException("Une absence existe déjà pour cet employé sur cette période.");
 			}
 		}
-
-		change(() -> absences.add(absence), () -> planning.releaseForAbsence(absence));
 	}
 
 	public ArrayList<EmployeeAbsence> getAbsences() {

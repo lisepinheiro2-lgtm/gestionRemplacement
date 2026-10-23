@@ -378,7 +378,7 @@ class BehaviorRegressionTest {
 		Employee employee = employee("A", "Nom", 2);
 		LocalDate day = LocalDate.of(2026, 10, 12);
 
-		assertEquals(HoursAlert.IN_PROGRESS, hours.getHoursAlert(employee, day, false));
+		assertEquals(HoursAlert.ALERT, hours.getHoursAlert(employee, day, false));
 
 		intervention(employee, day, 8, 10);
 

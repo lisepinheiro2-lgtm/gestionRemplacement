@@ -179,9 +179,10 @@ public class PlanningService {
 		ArrayList<Intervention> interventionsForPeriod = new ArrayList<Intervention>();
 
 		for (Intervention intervention : interventions) {
-			DateRange interventionPeriod = new DateRange(intervention.getStartDate(), intervention.getEndDate());
+			DateTimeRange interventionPeriod = DomainValidation.intervention(intervention);
 
-			if (PeriodUtils.hasDateOverlap(interventionPeriod, period)) {
+			if (interventionPeriod.start().isBefore(period.end().plusDays(1).atStartOfDay())
+					&& interventionPeriod.end().isAfter(period.start().atStartOfDay())) {
 				interventionsForPeriod.add(intervention);
 			}
 		}
@@ -385,10 +386,15 @@ public class PlanningService {
 		ArrayList<Intervention> generated = new ArrayList<>();
 		LocalDate date = recurring.getStartDate()
 				.with(java.time.temporal.TemporalAdjusters.nextOrSame(recurring.getDayOfWeek()));
+		boolean crossesMidnight = recurring.getEndTime().isBefore(recurring.getStartTime());
 
 		while (!date.isAfter(recurring.getEndDate())) {
+			if (crossesMidnight && date.equals(LocalDate.MAX))
+				throw new IllegalArgumentException("La date de cette occurrence ne permet pas de représenter le lendemain.");
+
+			LocalDate occurrenceEndDate = crossesMidnight ? date.plusDays(1) : date;
 			Intervention occurrence = new Intervention(recurring.getClient(), recurring.getEmployee(), date,
-					recurring.getStartTime(), date, recurring.getEndTime());
+					recurring.getStartTime(), occurrenceEndDate, recurring.getEndTime());
 			occurrence.setRecurringId(recurring.getId());
 			generated.add(occurrence);
 
@@ -446,39 +452,106 @@ public class PlanningService {
 	}
 
 	public void releaseForAbsence(gestion.model.EmployeeAbsence absence) {
-		DomainValidation.absence(absence);
-		DateTimeRange period = new DateTimeRange(absence.getStartDate().atStartOfDay(),
-				absence.getEndDate().plusDays(1).atStartOfDay());
-		ArrayList<Intervention> targets = getReplacementTargets(absence.getEmployee(), period);
-		LocalDateTime now = LocalDateTime.now();
+		applyAbsenceReleases(absence, previewAbsenceReleases(absence, false));
+	}
 
-		for (Intervention target : targets) {
-			DateTimeRange range = DomainValidation.intervention(target);
-			if (range.start().isBefore(now) && range.end().isAfter(now))
-				throw new IllegalArgumentException(
-						"Une intervention est en cours : sa prise en charge doit être décidée avant de déclarer l'absence.");
-		}
+	public List<AbsenceRelease> previewAbsenceReleases(gestion.model.EmployeeAbsence absence, boolean includeStarted) {
+		DateTimeRange period = DomainValidation.absencePeriod(absence);
+		personnel.requireKnown(absence.getEmployee());
+		return List.copyOf(prepareAbsenceReleases(absence.getEmployee(), period, includeStarted));
+	}
 
-		targets.removeIf(i -> DomainValidation.intervention(i).start().isBefore(now));
-		ArrayList<String> previousLinks = new ArrayList<>();
-		targets.forEach(i -> previousLinks.add(i.getSourceAbsenceId()));
+	public void releaseForConfirmedAbsence(gestion.model.EmployeeAbsence absence, List<AbsenceRelease> approved) {
+		List<AbsenceRelease> current = previewAbsenceReleases(absence, true);
 
-		if (targets.stream().anyMatch(i -> i.getSourceAbsenceId() != null))
-			throw new IllegalArgumentException(
-					"Une intervention est déjà liée à une autre absence ; réorganisation manuelle nécessaire.");
+		if (approved == null || !current.equals(approved))
+			throw new IllegalArgumentException("Le planning a changé : vérifiez à nouveau les créneaux à libérer.");
 
-		if (targets.isEmpty())
+		applyAbsenceReleases(absence, current);
+	}
+
+	private void applyAbsenceReleases(gestion.model.EmployeeAbsence absence, List<AbsenceRelease> releases) {
+		if (releases.isEmpty())
 			return;
-		ServiceChanges.apply(getDirectory(), () -> targets.forEach(i -> {
-			i.setEmployee(null);
-			i.setSourceAbsenceId(absence.getId());
-		}), this::saveInterventions, () -> {
 
-			for (int i = 0; i < targets.size(); i++) {
-				targets.get(i).setEmployee(absence.getEmployee());
-				targets.get(i).setSourceAbsenceId(previousLinks.get(i));
+		ArrayList<Intervention> previous = new ArrayList<>(interventions);
+
+		ServiceChanges.apply(getDirectory(), () -> {
+			for (AbsenceRelease release : releases)
+				applyAbsenceRelease(release, absence.getId());
+		}, this::saveInterventions, () -> {
+			interventions.clear();
+			interventions.addAll(previous);
+
+			for (AbsenceRelease release : releases) {
+				setInterventionPeriod(release.intervention(), release.originalPeriod());
+				release.intervention().setEmployee(absence.getEmployee());
+				release.intervention().setSourceAbsenceId(null);
 			}
 		});
+	}
+
+	public record AbsenceRelease(Intervention intervention, Client client, DateTimeRange originalPeriod,
+			DateTimeRange absentPeriod) {
+	}
+
+	private List<AbsenceRelease> prepareAbsenceReleases(Employee employee, DateTimeRange period, boolean includeStarted) {
+		ArrayList<AbsenceRelease> releases = new ArrayList<>();
+		LocalDateTime now = LocalDateTime.now();
+
+		for (Intervention intervention : interventions) {
+			if (intervention.getEmployee() != employee)
+				continue;
+
+			DateTimeRange range = DomainValidation.intervention(intervention);
+
+			if (!PeriodUtils.hasDateTimeOverlap(range, period) || (!includeStarted && !range.end().isAfter(now)))
+				continue;
+
+			if (!includeStarted && range.start().isBefore(now))
+				throw new IllegalArgumentException(
+						"Une intervention est en cours. Pour déclarer une absence partielle ou tardive, précisez les heures réelles puis confirmez les créneaux à libérer.");
+
+			if (intervention.getSourceAbsenceId() != null)
+				throw new IllegalArgumentException(
+						"Une intervention est déjà liée à une autre absence ; réorganisation manuelle nécessaire.");
+
+			LocalDateTime start = range.start().isBefore(period.start()) ? period.start() : range.start();
+			LocalDateTime end = range.end().isAfter(period.end()) ? period.end() : range.end();
+			releases.add(new AbsenceRelease(intervention, intervention.getClient(), range, new DateTimeRange(start, end)));
+		}
+
+		return releases;
+	}
+
+	private void applyAbsenceRelease(AbsenceRelease release, String absenceId) {
+		Intervention intervention = release.intervention();
+		DateTimeRange original = release.originalPeriod();
+		DateTimeRange absent = release.absentPeriod();
+
+		if (original.start().isBefore(absent.start()))
+			interventions.add(createAssignedFragment(intervention, new DateTimeRange(original.start(), absent.start())));
+
+		if (absent.end().isBefore(original.end()))
+			interventions.add(createAssignedFragment(intervention, new DateTimeRange(absent.end(), original.end())));
+
+		setInterventionPeriod(intervention, absent);
+		intervention.setEmployee(null);
+		intervention.setSourceAbsenceId(absenceId);
+	}
+
+	private Intervention createAssignedFragment(Intervention source, DateTimeRange period) {
+		Intervention fragment = new Intervention(source.getClient(), source.getEmployee(), period.start().toLocalDate(),
+				period.start().toLocalTime(), period.end().toLocalDate(), period.end().toLocalTime());
+		fragment.setRecurringId(source.getRecurringId());
+		return fragment;
+	}
+
+	private void setInterventionPeriod(Intervention intervention, DateTimeRange period) {
+		intervention.setStartDate(period.start().toLocalDate());
+		intervention.setStartTime(period.start().toLocalTime());
+		intervention.setEndDate(period.end().toLocalDate());
+		intervention.setEndTime(period.end().toLocalTime());
 	}
 
 	public ArrayList<Intervention> getReplacementTargets(Employee original, DateTimeRange period) {
@@ -541,6 +614,17 @@ public class PlanningService {
 
 	public void assignEmployee(List<Intervention> interventionsToAssign, Employee employee) {
 
+		validateEmployeeAssignment(interventionsToAssign, employee);
+		applyAssignments(interventionsToAssign, employee);
+	}
+
+	public void validateEmployeeAssignment(List<Intervention> interventionsToAssign, Employee employee) {
+		validateEmployeeAssignment(interventionsToAssign, employee, List.of());
+	}
+
+	public void validateEmployeeAssignment(List<Intervention> interventionsToAssign, Employee employee,
+			List<Intervention> releases) {
+
 		if (employee == null) {
 			throw new IllegalArgumentException("Veuillez choisir un employé");
 		}
@@ -568,21 +652,42 @@ public class PlanningService {
 			}
 		}
 
-		if (hasOverlap(employee, interventionsToAssign)) {
+		Set<Intervention> ignored = new HashSet<>(releases);
 
-			boolean absent = interventionsToAssign.stream()
-					.anyMatch(intervention -> absenceCheck.test(employee, DomainValidation.intervention(intervention)));
-
-			if (absent) {
-				throw new IllegalArgumentException("Attribution impossible : ce salarié est absent "
-						+ "sur au moins un des créneaux sélectionnés.");
-			}
-
-			throw new IllegalArgumentException(
-					"Attribution impossible : ce salarié possède déjà " + "une intervention sur un des créneaux.");
+		for (Intervention release : ignored) {
+			if (!interventions.contains(release) || release.getEmployee() != employee || seen.contains(release))
+				throw new IllegalArgumentException("Une désattribution prévue n'est plus valide.");
 		}
 
-		applyAssignments(interventionsToAssign, employee);
+		for (Intervention intervention : interventionsToAssign) {
+			if (isAbsent(employee, intervention))
+				throw new IllegalArgumentException("Attribution impossible : ce salarié est absent sur au moins un des créneaux sélectionnés.");
+
+			for (Intervention existing : interventions) {
+				if (existing != intervention && !seen.contains(existing) && existing.getEmployee() == employee
+						&& !ignored.contains(existing)
+						&& interventionsOverlap(intervention, existing))
+					throw new IllegalArgumentException("Attribution impossible : une intervention de ce salarié occupe encore un des créneaux.");
+			}
+		}
+
+		ArrayList<Intervention> ordered = new ArrayList<>(interventionsToAssign);
+		ordered.sort(Comparator.comparing(i -> DomainValidation.intervention(i).start()));
+
+		for (int index = 1; index < ordered.size(); index++) {
+			if (interventionsOverlap(ordered.get(index - 1), ordered.get(index)))
+				throw new IllegalArgumentException("Les interventions à attribuer se chevauchent entre elles. Modifiez la sélection initiale.");
+		}
+	}
+
+	public boolean isAbsent(Employee employee, Intervention intervention) {
+		personnel.requireKnown(employee);
+		DateTimeRange range = DomainValidation.intervention(intervention);
+
+		if (absenceCheck == null)
+			throw new IllegalStateException("Le contrôle des absences n'est pas initialisé.");
+
+		return absenceCheck.test(employee, range);
 	}
 
 	public boolean hasOverlap(Employee employee, List<Intervention> interventionsToAssign) {

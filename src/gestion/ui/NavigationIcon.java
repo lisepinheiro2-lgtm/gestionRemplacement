@@ -15,7 +15,7 @@ import javax.swing.Icon;
 
 public final class NavigationIcon implements Icon {
 	public enum Kind {
-		PEOPLE, CLIENTS, CALENDAR, REPLACEMENTS, INTERVENTIONS, ARCHIVE, SETTINGS, HOME, ARROW
+		PEOPLE, CLIENTS, CALENDAR, REPLACEMENTS, INTERVENTIONS, ARCHIVE, SETTINGS, HOME, ARROW, USER
 	}
 
 	private final Kind kind;
@@ -55,6 +55,12 @@ public final class NavigationIcon implements Icon {
 			g.draw(new Arc2D.Double(12, 4.5, 6, 6, -65, 145, Arc2D.OPEN));
 			g.draw(new Arc2D.Double(14, 13, 7, 10, 0, 85, Arc2D.OPEN));
 			line(g, 21, 18, 21, 21);
+		}
+
+		case USER -> {
+			g.draw(new Ellipse2D.Double(8, 3, 8, 8));
+			g.draw(new Arc2D.Double(4, 13, 16, 14, 0, 180, Arc2D.OPEN));
+			path(g, 4, 20, 4, 21, 20, 21, 20, 20);
 		}
 
 		case CLIENTS -> {

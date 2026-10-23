@@ -23,7 +23,7 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 	private final JLabel description = new JLabel("Organisation & remplacements");
 	private final JLabel page = new JLabel("Accueil", JLabel.CENTER);
 	private final JButton home;
-	private final JButton settings;
+	private final JButton account;
 	private final RavenDarkLightSwitch theme = new RavenDarkLightSwitch();
 
 	public ApplicationHeader(Component parent, JButton home, Image image) {
@@ -51,12 +51,15 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 		theme.setPreferredSize(new Dimension(70, 36));
 		theme.setSelected(UIUtils.isDarkMode());
 		theme.addActionListener(event -> UIUtils.setDarkMode(theme.isSelected()));
-		settings = UIUtils.createSettingsButton(parent);
-		settings.setText("");
-		settings.setPreferredSize(new Dimension(38, 36));
+		account = new JButton();
+		account.setPreferredSize(new Dimension(38, 36));
+		account.setEnabled(false);
+		account.setFocusable(false);
+		account.setToolTipText("Compte utilisateur — bientôt disponible");
+		account.getAccessibleContext().setAccessibleName("Compte utilisateur");
 		controls.add(home);
 		controls.add(theme);
-		controls.add(settings);
+		controls.add(account);
 		add(identity, BorderLayout.WEST);
 		add(page, BorderLayout.CENTER);
 		add(controls, BorderLayout.EAST);
@@ -81,13 +84,15 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 				BorderFactory.createEmptyBorder(14, 32, 14, 24)));
 		theme.setSelected(dark);
 		home.setIcon(new NavigationIcon(NavigationIcon.Kind.HOME, 16, foreground));
-		settings.setIcon(new NavigationIcon(NavigationIcon.Kind.SETTINGS, 20, muted));
+		NavigationIcon accountIcon = new NavigationIcon(NavigationIcon.Kind.USER, 20, muted);
+		account.setIcon(accountIcon);
+		account.setDisabledIcon(accountIcon);
 
 		String style = "arc:12;borderWidth:0;focusWidth:1;innerFocusWidth:0;background:" + hex(background)
 				+ ";foreground:" + hex(foreground) + ";hoverBackground:" + hex(border);
 
 		home.putClientProperty("FlatLaf.style", style);
-		settings.putClientProperty("FlatLaf.style", style);
+		account.putClientProperty("FlatLaf.style", style);
 	}
 
 	private static String hex(Color color) {

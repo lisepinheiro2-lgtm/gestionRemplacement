@@ -2,6 +2,7 @@ package gestion.controller;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,6 +12,7 @@ import gestion.model.EmployeeStatus;
 import gestion.model.EmployeeSummary;
 import gestion.service.AbsenceService;
 import gestion.service.PersonnelService;
+import gestion.service.PlanningService;
 import gestion.service.WorkHoursService;
 import gestion.util.FormatUtils;
 
@@ -52,7 +54,7 @@ public final class PersonnelController {
 			throws IOException {
 
 		if (status == EmployeeStatus.OPERATIONAL) {
-			absences.resumeEmployee(employee, LocalDate.now());
+			absences.resumeEmployeeAt(employee, LocalDateTime.now());
 			return;
 		}
 
@@ -64,9 +66,27 @@ public final class PersonnelController {
 		absences.addAbsence(new EmployeeAbsence(employee, status, start, end));
 	}
 
+	public EmployeeAbsence prepareTimedAbsence(Employee employee, EmployeeStatus status, String startText,
+			String endText, String timeText, String endTimeText) {
+		String endTime = endTimeText.trim().toLowerCase(java.util.Locale.ROOT).replace(':', 'h');
+		return new EmployeeAbsence(employee, status, FormatUtils.parseDate(startText), FormatUtils.parseDate(endText),
+				FormatUtils.parseTime(timeText.replace(':', 'h')),
+				endTime.equals("24h00") ? null : FormatUtils.parseTime(endTime));
+	}
+
+	public List<PlanningService.AbsenceRelease> previewTimedAbsence(EmployeeAbsence absence) {
+		return absences.previewTimedAbsence(absence);
+	}
+
+	public void declareTimedAbsence(EmployeeAbsence absence, List<PlanningService.AbsenceRelease> approved)
+			throws IOException {
+		absences.addTimedAbsence(absence, approved);
+	}
+
 	public List<EmployeeSummary> getRows(LocalDate assignedDate, boolean assignedMonthly) {
 
 		List<EmployeeSummary> rows = new ArrayList<>();
+		LocalDateTime statusTime = LocalDateTime.now();
 
 		for (Employee employee : personnel.getEmployees()) {
 
@@ -75,7 +95,7 @@ public final class PersonnelController {
 					: hours.getWeeklyHours(employee, assignedDate);
 			double remaining = expected - assigned;
 
-			rows.add(new EmployeeSummary(employee, absences.getStatusAt(employee, LocalDate.now()), assigned, remaining,
+			rows.add(new EmployeeSummary(employee, absences.getStatusAt(employee, statusTime), assigned, remaining,
 					hours.getHoursAlert(employee, assignedDate, assignedMonthly),
 					hours.getHoursAlert(employee, assignedDate, assignedMonthly)));
 		}

@@ -84,7 +84,7 @@ public final class DomainValidation {
 		new DateRange(recurring.getStartDate(), recurring.getEndDate());
 
 		if (recurring.getDayOfWeek() == null || recurring.getStartTime() == null || recurring.getEndTime() == null
-				|| !recurring.getEndTime().isAfter(recurring.getStartTime()))
+				|| recurring.getEndTime().equals(recurring.getStartTime()))
 			throw new IllegalArgumentException("Jour ou horaires de la série invalides.");
 	}
 
@@ -96,11 +96,25 @@ public final class DomainValidation {
 		text(absence.getId(), true);
 		new DateRange(absence.getStartDate(), absence.getEndDate());
 
+		if (absence.getStartTime() == null)
+			throw new IllegalArgumentException("Veuillez renseigner l'heure de début de l'absence.");
+
 		if (absence.getEndDate().equals(java.time.LocalDate.MAX))
 			throw new IllegalArgumentException("La date de fin ne permet pas de représenter le lendemain à minuit.");
 
+		new DateTimeRange(absence.getStartDate().atTime(absence.getStartTime()),
+				absence.getEndTime() == null ? absence.getEndDate().plusDays(1).atStartOfDay()
+						: absence.getEndDate().atTime(absence.getEndTime()));
+
 		if (absence.getStatus() == null || absence.getStatus() == EmployeeStatus.OPERATIONAL)
 			throw new IllegalArgumentException("Veuillez sélectionner un statut d'absence.");
+	}
+
+	public static DateTimeRange absencePeriod(EmployeeAbsence absence) {
+		absence(absence);
+		return new DateTimeRange(absence.getStartDate().atTime(absence.getStartTime()),
+				absence.getEndTime() == null ? absence.getEndDate().plusDays(1).atStartOfDay()
+						: absence.getEndDate().atTime(absence.getEndTime()));
 	}
 
 	public static DateTimeRange replacement(Replacement replacement) {
