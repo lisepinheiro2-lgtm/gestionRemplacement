@@ -1,11 +1,44 @@
 package gestion.repository;
 
 import java.util.List;
+import java.util.UUID;
+
 import gestion.model.*;
+import gestion.util.DomainValidation;
 
 public final class CsvReferences {
 
 	private CsvReferences() {
+	}
+
+	static Employee employeeById(List<Employee> employees, String value, boolean optional) {
+		if (optional && value.isEmpty())
+			return null;
+
+		UUID id = DomainValidation.uuid(value);
+		List<Employee> matches = employees.stream().filter(e -> e.getEmployeeID().equals(id)).toList();
+
+		if (matches.size() != 1)
+			throw new IllegalArgumentException("UUID salarié introuvable ou dupliqué : " + id);
+
+		return matches.getFirst();
+	}
+
+	static Employee optionalEmployeeById(List<Employee> employees, String value, String first, String last) {
+		if (value.isEmpty() && (!first.isEmpty() || !last.isEmpty()))
+			throw new IllegalArgumentException("Référence salarié sans UUID ; attribution non devinée.");
+
+		return employeeById(employees, value, true);
+	}
+
+	static Client clientById(List<Client> clients, String value) {
+		UUID id = DomainValidation.uuid(value);
+		List<Client> matches = clients.stream().filter(c -> c.getClientID().equals(id)).toList();
+
+		if (matches.size() != 1)
+			throw new IllegalArgumentException("UUID client introuvable ou dupliqué : " + id);
+
+		return matches.getFirst();
 	}
 
 	public static Employee findEmployee(List<Employee> employees, String firstName, String lastName) {
@@ -36,23 +69,4 @@ public final class CsvReferences {
 		return match;
 	}
 
-	static Client requiredClient(List<Client> clients, String first, String last) {
-		Client client = findClient(clients, first, last);
-
-		if (client == null)
-			throw new IllegalArgumentException("Référence client absente.");
-		return client;
-	}
-
-	static Employee optionalEmployee(List<Employee> employees, String first, String last) {
-
-		if (first.isBlank() && last.isBlank())
-			return null;
-		if (first.isBlank() || last.isBlank())
-			throw new IllegalArgumentException("Référence employé incomplète.");
-		Employee employee = findEmployee(employees, first, last);
-		if (employee == null)
-			throw new IllegalArgumentException("Référence employé absente.");
-		return employee;
-	}
 }

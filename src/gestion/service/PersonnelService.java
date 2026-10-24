@@ -1,16 +1,18 @@
 package gestion.service;
 
 import java.nio.file.Path;
-import java.util.List;
-import java.util.function.Predicate;
-import java.util.function.Consumer;
-import gestion.repository.CsvStore;
-import gestion.util.DomainValidation;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import gestion.model.Employee;
+import gestion.repository.CsvReferences;
+import gestion.repository.CsvStore;
 import gestion.repository.EmployeeCsvRepository;
+import gestion.util.DomainValidation;
 
 public class PersonnelService {
 
@@ -44,10 +46,6 @@ public class PersonnelService {
 				throw new IllegalArgumentException(
 						"Ce prénom et ce nom existent déjà ; les homonymes ne sont pas encore pris en charge.");
 
-		if (original != null && (!original.getFirstName().equals(candidate.getFirstName())
-				|| !original.getLastName().equals(candidate.getLastName())) && referenced(original))
-			throw new IllegalArgumentException(
-					"Renommage refusé : cette personne est encore référencée. Les autres informations restent modifiables.");
 	}
 
 	private void changeList(Consumer<ArrayList<Employee>> mutation) {
@@ -86,10 +84,11 @@ public class PersonnelService {
 		if (index < 0 || index >= employees.size())
 			throw new IllegalArgumentException("Veuillez sélectionner un employé.");
 		Employee employee = employees.get(index);
-		Employee candidate = new Employee(firstName, lastName, contractHours, statut, assignedHours, remainingHours);
+		Employee candidate = new Employee(firstName, lastName, contractHours, statut, assignedHours, remainingHours,
+				employee.getEmployeeID());
 		validateIdentity(candidate, employee);
 		Employee previous = new Employee(employee.getFirstName(), employee.getLastName(), employee.getContractHours(),
-				employee.getStatut(), employee.getAssignedHours(), employee.getRemainingHours());
+				employee.getStatut(), employee.getAssignedHours(), employee.getRemainingHours(), employee.getEmployeeID());
 		ArrayList<Employee> order = new ArrayList<>(employees);
 		ServiceChanges.apply(getDirectory(), () -> {
 			copyValues(candidate, employee);
@@ -132,19 +131,25 @@ public class PersonnelService {
 			return null;
 		}
 
-		return findEmployee(employeeToFind.getFirstName(), employeeToFind.getLastName());
+		return findEmployee(employeeToFind.getEmployeeID());
 	}
 
-	public Employee findEmployee(String firstName, String lastName) {
+	public Employee findEmployee(UUID id) {
+		Employee found = null;
 
 		for (Employee employee : employees) {
-			if (employee.getFirstName().equals(firstName) && employee.getLastName().equals(lastName)) {
-
-				return employee;
+			if (employee.getEmployeeID().equals(id)) {
+				if (found != null)
+					throw new IllegalArgumentException("UUID salarié dupliqué : " + id);
+				found = employee;
 			}
 		}
 
-		return null;
+		return found;
+	}
+
+	public Employee findEmployee(String firstName, String lastName) {
+		return CsvReferences.findEmployee(employees, firstName, lastName);
 	}
 
 	public boolean isEmpty() {

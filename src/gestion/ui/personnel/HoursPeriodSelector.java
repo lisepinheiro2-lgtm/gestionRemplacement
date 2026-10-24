@@ -14,8 +14,6 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import com.formdev.flatlaf.ui.FlatComboBoxUI;
-
 import gestion.model.DateRange;
 import gestion.ui.AppThemeAware;
 import gestion.ui.UIUtils;
@@ -81,13 +79,12 @@ public final class HoursPeriodSelector extends JPanel implements AppThemeAware {
 
 	@Override
 	public void applyAppTheme(boolean dark) {
+		
 		setBackground(UIUtils.getBackgroundColor());
-
-		if (!(mode.getUI() instanceof FlatComboBoxUI))
-			mode.setUI(new FlatComboBoxUI());
 
 		mode.setBackground(new Color(0x1B2330));
 		mode.setForeground(new Color(0xEEF3FB));
+		
 		UIUtils.applyTheme(navigation);
 	}
 

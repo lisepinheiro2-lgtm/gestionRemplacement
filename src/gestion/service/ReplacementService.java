@@ -1,5 +1,7 @@
 package gestion.service;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -10,12 +12,10 @@ import java.util.HashSet;
 import gestion.model.Employee;
 import gestion.model.EmployeeAbsence;
 import gestion.model.Replacement;
-import gestion.repository.ReplacementCsvRepository;
-import gestion.util.FormatUtils;
-import gestion.util.DomainValidation;
 import gestion.repository.CsvStore;
-import java.io.IOException;
-import java.io.UncheckedIOException;
+import gestion.repository.ReplacementCsvRepository;
+import gestion.util.DomainValidation;
+import gestion.util.FormatUtils;
 
 public class ReplacementService {
 
@@ -35,20 +35,19 @@ public class ReplacementService {
 			throw new IllegalArgumentException("Personnel déjà associé.");
 
 		for (Replacement replacement : replacements) {
-			Employee original = personnel.findEmployee(replacement.getEmployeeToReplace());
-			Employee substitute = personnel.findEmployee(replacement.getReplacementEmployee());
+			DomainValidation.replacement(replacement);
 
-			if (original == null || (replacement.getReplacementEmployee() != null && substitute == null))
-				throw new UncheckedIOException(
-						new IOException("replacements.csv : référence employé introuvable ; chargement refusé."));
-
-			replacement.setEmployeeToReplace(original);
-			replacement.setReplacementEmployee(substitute);
+			if (replacement.getAbsenceId() != null
+					&& personnel.findEmployee(replacement.getEmployeeToReplace()) == null)
+				throw new UncheckedIOException(new IOException("replacements.csv : salarié de l'absence introuvable, UUID "
+						+ replacement.getEmployeeToReplace().getEmployeeID()));
 		}
 
 		this.personnel = personnel;
-		personnel.protectReferences(employee -> replacements.stream()
-				.anyMatch(r -> r.getEmployeeToReplace() == employee || r.getReplacementEmployee() == employee));
+		personnel.protectReferences(employee -> replacements.stream().anyMatch(r ->
+				r.getEmployeeToReplace().getEmployeeID().equals(employee.getEmployeeID())
+				|| r.getReplacementEmployee() != null
+				&& r.getReplacementEmployee().getEmployeeID().equals(employee.getEmployeeID())));
 	}
 
 	private void validate(Replacement replacement) {
@@ -60,6 +59,19 @@ public class ReplacementService {
 			if (replacement.getReplacementEmployee() != null)
 				personnel.requireKnown(replacement.getReplacementEmployee());
 		}
+	}
+
+	private static Employee historicalCopy(Employee source) {
+		if (source == null)
+			return null;
+
+		return new Employee(source.getFirstName(), source.getLastName(), source.getContractHours(), source.getStatut(),
+				source.getAssignedHours(), source.getRemainingHours(), source.getEmployeeID());
+	}
+
+	private static void freezeEmployees(Replacement replacement) {
+		replacement.setEmployeeToReplace(historicalCopy(replacement.getEmployeeToReplace()));
+		replacement.setReplacementEmployee(historicalCopy(replacement.getReplacementEmployee()));
 	}
 
 	private static Replacement copy(Replacement source) {
@@ -160,6 +172,7 @@ public class ReplacementService {
 		Replacement candidate = new Replacement(employeeToReplace, contractHoursEmployeeToReplace, replacementEmployee,
 				contractHoursReplacementEmployee, startDate, startTime, endDate, endTime);
 		validate(candidate);
+		freezeEmployees(candidate);
 
 		change(() -> {
 			replacements.add(candidate);
@@ -178,6 +191,7 @@ public class ReplacementService {
 				contractHoursReplacementEmployee, startDate, startTime, endDate, endTime);
 		candidate.setAbsenceId(replacements.get(index).getAbsenceId());
 		validate(candidate);
+		freezeEmployees(candidate);
 		Replacement original = replacements.get(index);
 
 		change(() -> {
@@ -250,6 +264,7 @@ public class ReplacementService {
 					linkedReplacement = new Replacement(employee, employee.getContractHours(), null, 0, startDate,
 							startTime, endDate, endTime);
 
+					freezeEmployees(linkedReplacement);
 					linkedReplacement.setAbsenceId(absence.getId());
 					replacements.add(linkedReplacement);
 

@@ -1,17 +1,18 @@
 package gestion.service;
 
 import java.nio.file.Path;
-import java.util.List;
-import java.util.function.Predicate;
-import java.util.function.Consumer;
-import gestion.repository.CsvStore;
-import gestion.util.DomainValidation;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import gestion.model.Client;
 import gestion.repository.ClientCsvRepository;
+import gestion.repository.CsvReferences;
+import gestion.repository.CsvStore;
+import gestion.util.DomainValidation;
 
 public class ClientService {
 
@@ -47,10 +48,6 @@ public class ClientService {
 				throw new IllegalArgumentException(
 						"Ce prénom et ce nom existent déjà ; les homonymes ne sont pas encore pris en charge.");
 
-		if (original != null && (!original.getFirstName().equals(candidate.getFirstName())
-				|| !original.getLastName().equals(candidate.getLastName())) && referenced(original))
-			throw new IllegalArgumentException(
-					"Renommage refusé : cette personne est encore référencée. Les autres informations restent modifiables.");
 	}
 
 	private void changeList(Consumer<ArrayList<Client>> mutation) {
@@ -84,10 +81,10 @@ public class ClientService {
 			throw new IllegalArgumentException("Veuillez sélectionner un client.");
 		Client client = clients.get(index);
 		Client candidate = new Client(firstName, lastName, address, totalHoursContract, contractStartDate,
-				contractEndDate);
+				contractEndDate, client.getClientID());
 		validateIdentity(candidate, client);
 		Client previous = new Client(client.getFirstName(), client.getLastName(), client.getAddress(),
-				client.getTotalHoursContract(), client.getContractStartDate(), client.getContractEndDate());
+				client.getTotalHoursContract(), client.getContractStartDate(), client.getContractEndDate(), client.getClientID());
 		ArrayList<Client> order = new ArrayList<>(clients);
 		ServiceChanges.apply(getDirectory(), () -> {
 			copyValues(candidate, client);
@@ -109,14 +106,7 @@ public class ClientService {
 	}
 
 	public Client findClient(String firstName, String lastName) {
-
-		for (Client client : clients) {
-			if (client.getFirstName().equals(firstName) && client.getLastName().equals(lastName)) {
-				return client;
-			}
-		}
-
-		return null;
+		return CsvReferences.findClient(clients, firstName, lastName);
 	}
 
 	public void sortClients() {

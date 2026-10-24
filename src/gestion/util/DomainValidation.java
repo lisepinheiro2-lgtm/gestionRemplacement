@@ -1,11 +1,20 @@
 package gestion.util;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
+
 import gestion.model.*;
 
 public final class DomainValidation {
 
 	private DomainValidation() {
+	}
+
+	public static UUID uuid(String value) {
+		if (value == null || !value.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
+			throw new IllegalArgumentException("UUID invalide : " + value);
+
+		return UUID.fromString(value);
 	}
 
 	public static void text(String value, boolean required) {
@@ -27,6 +36,7 @@ public final class DomainValidation {
 
 		if (employee == null)
 			throw new IllegalArgumentException("Veuillez sélectionner un employé.");
+		uuid(employee.getEmployeeID().toString());
 		text(employee.getFirstName(), true);
 		text(employee.getLastName(), true);
 		text(employee.getStatut(), true);
@@ -40,6 +50,7 @@ public final class DomainValidation {
 
 		if (client == null)
 			throw new IllegalArgumentException("Veuillez sélectionner un client.");
+		uuid(client.getClientID().toString());
 		text(client.getFirstName(), true);
 		text(client.getLastName(), true);
 		text(client.getAddress(), true);
@@ -53,6 +64,7 @@ public final class DomainValidation {
 
 		if (intervention == null)
 			throw new IllegalArgumentException("Veuillez sélectionner une intervention.");
+		uuid(intervention.getInterventionID().toString());
 		client(intervention.getClient());
 
 		if (intervention.getEmployee() != null)
@@ -63,10 +75,10 @@ public final class DomainValidation {
 			throw new IllegalArgumentException("Veuillez renseigner les dates et horaires.");
 
 		if (intervention.getSourceAbsenceId() != null)
-			text(intervention.getSourceAbsenceId(), true);
+			uuid(intervention.getSourceAbsenceId());
 
 		if (intervention.getRecurringId() != null)
-			text(intervention.getRecurringId(), true);
+			uuid(intervention.getRecurringId());
 
 		return new DateTimeRange(LocalDateTime.of(intervention.getStartDate(), intervention.getStartTime()),
 				LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime()));
@@ -80,7 +92,7 @@ public final class DomainValidation {
 
 		if (recurring.getEmployee() != null)
 			employee(recurring.getEmployee());
-		text(recurring.getId(), true);
+		uuid(recurring.getId());
 		new DateRange(recurring.getStartDate(), recurring.getEndDate());
 
 		if (recurring.getDayOfWeek() == null || recurring.getStartTime() == null || recurring.getEndTime() == null
@@ -93,7 +105,7 @@ public final class DomainValidation {
 		if (absence == null)
 			throw new IllegalArgumentException("Absence manquante.");
 		employee(absence.getEmployee());
-		text(absence.getId(), true);
+		uuid(absence.getId());
 		new DateRange(absence.getStartDate(), absence.getEndDate());
 
 		if (absence.getStartTime() == null)
@@ -127,13 +139,16 @@ public final class DomainValidation {
 			employee(replacement.getReplacementEmployee());
 		hours(replacement.getContractHoursEmployeeToReplace());
 		hours(replacement.getContractHoursReplacementEmployee());
+
+		if (replacement.getReplacementEmployee() == null && replacement.getContractHoursReplacementEmployee() != 0)
+			throw new IllegalArgumentException("Heures de remplacement présentes sans identité de remplaçant.");
 		text(replacement.getStartDate(), true);
 		text(replacement.getEndDate(), true);
 		text(replacement.getStartTime(), true);
 		text(replacement.getEndTime(), true);
 
 		if (replacement.getAbsenceId() != null)
-			text(replacement.getAbsenceId(), true);
+			uuid(replacement.getAbsenceId());
 		return new DateTimeRange(
 				LocalDateTime.of(FormatUtils.parseDate(replacement.getStartDate()),
 						FormatUtils.parseTime(replacement.getStartTime())),

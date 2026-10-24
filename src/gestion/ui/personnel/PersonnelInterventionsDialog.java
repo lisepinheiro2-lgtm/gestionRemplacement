@@ -14,6 +14,7 @@ import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.io.UncheckedIOException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -183,8 +184,10 @@ public class PersonnelInterventionsDialog {
 				+ "[dark]focusedBorderColor: #62D3FF; [light]focusedBorderColor: #087FAC; focusColor: #339FCA");
 		search.putClientProperty("JTextField.leadingIcon", new AzureSearchIcon());
 		search.putClientProperty("JTextField.placeholderText", "Date, nom ou prénom…");
-		search.putClientProperty("JTextField.showClearButton", true);
-		search.setToolTipText("Client ou intervenant : nom et prénom dans les deux ordres. "
+		search.putClientProperty("JTextField.showClearButton", false);
+		search.setToolTipText("Recherche sur toutes les interventions futures ; champ vide : période sélectionnée. "
+				+ "Client ou intervenant : nom et prénom dans les deux ordres. "
+				+ "Jour seul : 1 à 31, avec ou sans zéro initial. "
 				+ "Dates : dd/MM, dd-MM, dd/MM/aaaa, dd-MM-aaaa, dd/MM/aa ou dd-MM-aa.");
 		search.getAccessibleContext().setAccessibleName("Rechercher une intervention par date ou par nom");
 		searchDelay = new Timer(150, event -> refreshTables());
@@ -219,18 +222,33 @@ public class PersonnelInterventionsDialog {
 		refreshing = true;
 
 		try {
-			var filter = InterventionSearch.filter(search.getText());
-			tables[0].showInterventions(planning.getUnassignedInterventionsForPeriod(period).stream()
-					.filter(filter).toList());
-			tables[1].showInterventions(planning.getAssignedInterventionsForPeriod(period, employee).stream()
-					.filter(filter).toList());
-			tables[2].showInterventions(planning.getOtherAssignedInterventionsForPeriod(period, employee).stream()
-					.filter(filter).toList());
+			List<Intervention> matching = matchingInterventions();
+
+			tables[0].showInterventions(matching.stream()
+					.filter(intervention -> intervention.getEmployee() == null).toList());
+			tables[1].showInterventions(matching.stream()
+					.filter(intervention -> intervention.getEmployee() == employee).toList());
+			tables[2].showInterventions(matching.stream()
+					.filter(intervention -> intervention.getEmployee() != null && intervention.getEmployee() != employee)
+					.toList());
 		} finally {
 			refreshing = false;
 		}
 
 		updateImpact();
+	}
+
+	private List<Intervention> matchingInterventions() {
+		String query = search.getText().strip();
+		List<Intervention> source = query.isEmpty()
+				? planning.getInterventionsForPeriod(period) : planning.getInterventions();
+		LocalDateTime now = LocalDateTime.now();
+		var filter = InterventionSearch.filter(query);
+
+		return source.stream()
+				.filter(intervention -> InterventionAssignmentService.isModifiable(intervention, now))
+				.filter(filter)
+				.toList();
 	}
 
 	private void validateSelection() {

@@ -4,98 +4,119 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Objects;
+import java.util.UUID;
 
 public class Intervention {
 
-    private Client client;
-    private Employee employee;
+	private Client client;
+	private Employee employee;
 
-    private LocalDate startDate;
-    private LocalDate endDate;
+	private LocalDate startDate;
+	private LocalDate endDate;
 
-    private LocalTime startTime;
-    private LocalTime endTime;
-    private String recurringId;
-   
-    private String sourceAbsenceId;
-    public String getSourceAbsenceId() { return sourceAbsenceId; }
-    public void setSourceAbsenceId(String id) { sourceAbsenceId = id; }
+	private LocalTime startTime;
+	private LocalTime endTime;
+	private String recurringId;
+	private final UUID interventionID;
 
-    public Intervention(Client client, Employee employee, LocalDate startDate, LocalTime startTime, LocalDate endDate,
-            LocalTime endTime) {
+	private String sourceAbsenceId;
 
-        this.client = client;
-        this.employee = employee;
-        this.startDate = startDate;
-        this.startTime = startTime;
-        this.endDate = endDate;
-        this.endTime = endTime;
-    }
+	public String getSourceAbsenceId() {
+		return sourceAbsenceId;
+	}
 
-    public double getDurationHours() {
+	public void setSourceAbsenceId(String id) {
+		sourceAbsenceId = id;
+	}
 
-        LocalDateTime start = LocalDateTime.of(startDate, startTime);
-        LocalDateTime end = LocalDateTime.of(endDate, endTime);
+	public Intervention(Client client, Employee employee, LocalDate startDate, LocalTime startTime, LocalDate endDate,
+			LocalTime endTime, UUID interventionUuid) {
 
-        long minutes = Duration.between(start, end).toMinutes();
+		this.client = client;
+		this.employee = employee;
+		this.startDate = startDate;
+		this.startTime = startTime;
+		this.endDate = endDate;
+		this.endTime = endTime;
+		this.interventionID = Objects.requireNonNull(interventionUuid,
+				"L'UUID de l'intervention ne peut pas être null");
+	}
 
-        return minutes / 60.0;
-    }
+	public Intervention(Client client, Employee employee, LocalDate startDate, LocalTime startTime, LocalDate endDate,
+			LocalTime endTime) {
 
-    public Client getClient() {
-        return client;
-    }
+		this(client, employee, startDate, startTime, endDate, endTime, UUID.randomUUID());
+	}
 
-    public void setClient(Client client) {
-        this.client = client;
-    }
+	public double getDurationHours() {
 
-    public Employee getEmployee() {
-        return employee;
-    }
+		LocalDateTime start = LocalDateTime.of(startDate, startTime);
+		LocalDateTime end = LocalDateTime.of(endDate, endTime);
 
-    public void setEmployee(Employee employee) {
-        this.employee = employee;
-    }
+		long minutes = Duration.between(start, end).toMinutes();
 
-    public LocalDate getStartDate() {
-        return startDate;
-    }
+		return minutes / 60.0;
+	}
 
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
+	public Client getClient() {
+		return client;
+	}
 
-    public LocalDate getEndDate() {
-        return endDate;
-    }
+	public void setClient(Client client) {
+		this.client = client;
+	}
 
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
+	public Employee getEmployee() {
+		return employee;
+	}
 
-    public LocalTime getStartTime() {
-        return startTime;
-    }
+	public void setEmployee(Employee employee) {
+		this.employee = employee;
+	}
 
-    public void setStartTime(LocalTime startTime) {
-        this.startTime = startTime;
-    }
+	public LocalDate getStartDate() {
+		return startDate;
+	}
 
-    public LocalTime getEndTime() {
-        return endTime;
-    }
+	public void setStartDate(LocalDate startDate) {
+		this.startDate = startDate;
+	}
 
-    public void setEndTime(LocalTime endTime) {
-        this.endTime = endTime;
-    }
+	public LocalDate getEndDate() {
+		return endDate;
+	}
 
-    public String getRecurringId() {
-        return recurringId;
-    }
+	public void setEndDate(LocalDate endDate) {
+		this.endDate = endDate;
+	}
 
-    public void setRecurringId(String recurringId) {
-        this.recurringId = recurringId;
-    }
+	public LocalTime getStartTime() {
+		return startTime;
+	}
+
+	public void setStartTime(LocalTime startTime) {
+		this.startTime = startTime;
+	}
+
+	public LocalTime getEndTime() {
+		return endTime;
+	}
+
+	public void setEndTime(LocalTime endTime) {
+		this.endTime = endTime;
+	}
+
+	public String getRecurringId() {
+		return recurringId;
+	}
+
+	public void setRecurringId(String recurringId) {
+		this.recurringId = recurringId;
+	}
+
+	public UUID getInterventionID() {
+		return interventionID;
+	}
 
 }

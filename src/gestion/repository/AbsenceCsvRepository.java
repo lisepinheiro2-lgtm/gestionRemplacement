@@ -1,12 +1,12 @@
 package gestion.repository;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.*;
 import java.util.*;
+
 import gestion.model.*;
 import gestion.util.DomainValidation;
-
-import java.io.IOException;
 
 public final class AbsenceCsvRepository {
 
@@ -25,15 +25,18 @@ public final class AbsenceCsvRepository {
 		List<EmployeeAbsence> checked = new ArrayList<>();
 
 		return CsvFormat.read(path, cells -> {
-			CsvFormat.columns(cells, 6, 7, 8);
-			Employee employee = CsvReferences.optionalEmployee(employees, cells[2], cells[1]);
+			CsvFormat.columns(cells, 9);
+			Employee employee = CsvReferences.employeeById(employees, cells[8], false);
+
 			EmployeeAbsence absence = new EmployeeAbsence(employee, EmployeeStatus.valueOf(cells[3]),
 					LocalDate.parse(cells[4]), LocalDate.parse(cells[5]),
-					cells.length >= 7 ? LocalTime.parse(cells[6]) : LocalTime.MIDNIGHT,
-					cells.length == 8 ? LocalTime.parse(cells[7]) : null);
+					LocalTime.parse(cells[6]),
+					!cells[7].isEmpty() ? LocalTime.parse(cells[7]) : null);
+
 			absence.setId(cells[0]);
 			validate(absence, checked);
 			checked.add(absence);
+
 			return absence;
 		});
 	}
@@ -43,15 +46,16 @@ public final class AbsenceCsvRepository {
 		DomainValidation.absence(absence);
 
 		for (EmployeeAbsence other : checked) {
-			if (absence.getId().equals(other.getId()))
+			if (DomainValidation.uuid(absence.getId()).equals(DomainValidation.uuid(other.getId())))
 				throw new IllegalArgumentException("Identifiant d'absence dupliqué.");
-			if (absence.getEmployee() == other.getEmployee() && gestion.util.PeriodUtils.hasDateTimeOverlap(
-					DomainValidation.absencePeriod(absence), DomainValidation.absencePeriod(other)))
+			if (absence.getEmployee().getEmployeeID().equals(other.getEmployee().getEmployeeID()) && gestion.util.PeriodUtils
+					.hasDateTimeOverlap(DomainValidation.absencePeriod(absence), DomainValidation.absencePeriod(other)))
 				throw new IllegalArgumentException("Absences superposées.");
 		}
 	}
 
 	public void save(List<EmployeeAbsence> absences) throws IOException {
+		CsvIdentityMigration.requireCurrentFormat(getDirectory());
 
 		StringBuilder content = new StringBuilder();
 		List<EmployeeAbsence> checked = new ArrayList<>();
@@ -59,21 +63,10 @@ public final class AbsenceCsvRepository {
 		for (EmployeeAbsence absence : absences) {
 			validate(absence, checked);
 			checked.add(absence);
-			Object[] cells = { absence.getId(), absence.getEmployee().getLastName(),
+			content.append(CsvFormat.row(absence.getId(), absence.getEmployee().getLastName(),
 					absence.getEmployee().getFirstName(), absence.getStatus().name(), absence.getStartDate(),
-					absence.getEndDate() };
-
-			if (absence.getStartTime().equals(LocalTime.MIDNIGHT) && absence.getEndTime() == null) {
-				content.append(CsvFormat.row(cells));
-			} else {
-				Object[] timedCells = Arrays.copyOf(cells, absence.getEndTime() == null ? 7 : 8);
-				timedCells[6] = absence.getStartTime();
-
-				if (absence.getEndTime() != null)
-					timedCells[7] = absence.getEndTime();
-
-				content.append(CsvFormat.row(timedCells));
-			}
+					absence.getEndDate(), absence.getStartTime(), absence.getEndTime(),
+					absence.getEmployee().getEmployeeID()));
 		}
 
 		CsvStore.writeChecked(path, content.toString());

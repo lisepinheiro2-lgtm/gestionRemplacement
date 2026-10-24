@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+
 public final class CsvStore {
 
 	private static final String JOURNAL = ".gestion-transaction";
@@ -35,6 +36,7 @@ public final class CsvStore {
 		final Path directory;
 		final Map<Path, byte[]> writes = new LinkedHashMap<>();
 		final List<Runnable> rollbacks = new ArrayList<>();
+		final Map<Path, byte[]> expected = new LinkedHashMap<>();
 
 		Transaction(Path directory) {
 			this.directory = directory;
@@ -136,8 +138,11 @@ public final class CsvStore {
 				throw new IOException("Les CSV doivent partager le même dossier.");
 			transaction.writes.put(target, bytes);
 		} else {
-			recover(root);
-			atomicWrite(target, bytes);
+			try {
+				transaction(root, () -> CURRENT.get().writes.put(target, bytes));
+			} catch (UncheckedIOException failure) {
+				throw failure.getCause();
+			}
 		}
 	}
 
@@ -193,60 +198,86 @@ public final class CsvStore {
 		}
 	}
 
+	static synchronized void expectUnchanged(Path directory, Map<Path, byte[]> expected) {
+		Transaction transaction = CURRENT.get();
+
+		if (transaction == null || !transaction.directory.equals(directory(directory)))
+			throw new IllegalStateException("Vérification CSV hors transaction.");
+
+		expected.forEach((path, bytes) -> transaction.expected.put(path, bytes == null ? null : bytes.clone()));
+	}
+
+	static synchronized boolean hasTransaction() {
+		return CURRENT.get() != null;
+	}
+
 	private static void commit(Transaction transaction) throws IOException {
-		
+
 		if (transaction.writes.isEmpty())
 			return;
-		
+
+		for (var entry : transaction.expected.entrySet()) {
+			byte[] current = Files.notExists(entry.getKey()) ? null : Files.readAllBytes(entry.getKey());
+
+			if (!java.util.Arrays.equals(current, entry.getValue()))
+				throw new IOException("CSV modifié avant migration : " + entry.getKey().getFileName());
+		}
+
+		CsvIdentityMigration.validatePending(transaction.directory, transaction.writes);
+
 		Path journal = transaction.directory.resolve(JOURNAL);
 		Files.createDirectory(journal);
-		
+
 		try {
 			StringBuilder manifest = new StringBuilder();
-			
+
 			for (var entry : transaction.writes.entrySet()) {
 				Path target = entry.getKey();
 				boolean exists = Files.exists(target, LinkOption.NOFOLLOW_LINKS);
-				
+
 				if (exists)
 					requireRegular(target);
 				else if (!Files.notExists(target))
 					throw new IOException("Fichier inaccessible : " + target.getFileName());
 				byte[] previous = exists ? Files.readAllBytes(target) : new byte[0];
+
+				if (transaction.expected.containsKey(target)
+						&& !java.util.Arrays.equals(exists ? previous : null, transaction.expected.get(target)))
+					throw new IOException("CSV modifié pendant la migration : " + target.getFileName());
 				String name = target.getFileName().toString();
-				
+
 				if (exists)
 					atomicWrite(journal.resolve(name + ".old"), previous);
 				atomicWrite(journal.resolve(name + ".new"), entry.getValue());
 				manifest.append(name).append(';').append(exists).append(';').append(hash(previous)).append(';')
 						.append(hash(entry.getValue())).append('\n');
 			}
-			
+
 			atomicWrite(journal.resolve("prepared"), manifest.toString().getBytes(StandardCharsets.UTF_8));
 			int installed = 0;
-			
+
 			for (Path target : transaction.writes.keySet()) {
 				Files.move(journal.resolve(target.getFileName() + ".new"), target, StandardCopyOption.ATOMIC_MOVE,
 						StandardCopyOption.REPLACE_EXISTING);
-				afterInstall(++installed); 
+				afterInstall(++installed);
 			}
-			
+
 			atomicWrite(journal.resolve("committed"), new byte[0]);
-			
+
 		} catch (IOException | RuntimeException failure) {
 			try {
 				recover(transaction.directory);
-				
+
 			} catch (IOException recovery) {
 				BLOCKED.add(transaction.directory);
 				failure.addSuppressed(recovery);
 				throw new IOException(
 						"Compensation incomplète : fermer l'application et conserver .gestion-transaction.", failure);
 			}
-			
+
 			throw failure;
 		}
-	
+
 		try {
 			cleanup(journal);
 		} catch (IOException ignored) {

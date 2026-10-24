@@ -1,17 +1,15 @@
 package gestion.ui;
 
 import java.awt.BorderLayout;
-import java.util.ArrayList;
-import java.util.List;
-import gestion.model.Intervention;
-import java.io.UncheckedIOException;
-import gestion.ui.ActionDialogs;
 import java.awt.GridLayout;
+import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -24,10 +22,12 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
 import gestion.model.Employee;
+import gestion.model.Intervention;
 import gestion.model.Replacement;
 import gestion.service.PersonnelService;
 import gestion.service.PlanningService;
 import gestion.service.ReplacementService;
+import gestion.ui.ActionDialogs;
 import gestion.util.FormatUtils;
 
 public class ReplacementUI extends JPanel {
@@ -260,14 +260,14 @@ public class ReplacementUI extends JPanel {
 				continue;
 			}
 
-			Employee employeeToReplace = personnel.findEmployee(replacement.getEmployeeToReplace());
-			Employee replacementEmployee = personnel.findEmployee(replacement.getReplacementEmployee());
+			Employee employeeToReplace = replacement.getEmployeeToReplace();
+			Employee replacementEmployee = replacement.getReplacementEmployee();
 			String replacementText = linkedToAbsence ? "Non attribué" : "Attribution individuelle";
 			String replacementHours = "-";
 
 			if (replacementEmployee != null) {
 				replacementText = replacementEmployee.toString();
-				replacementHours = FormatUtils.formatContractHours(replacementEmployee.getContractHours());
+				replacementHours = FormatUtils.formatContractHours(replacement.getContractHoursReplacementEmployee());
 			}
 
 			if (linkedToAbsence) {
@@ -284,7 +284,7 @@ public class ReplacementUI extends JPanel {
 			Object[] row = { replacement.getEmployeeToReplace(),
 
 					employeeToReplace == null ? "Référence manquante"
-							: FormatUtils.formatContractHours(employeeToReplace.getContractHours()),
+							: FormatUtils.formatContractHours(replacement.getContractHoursEmployeeToReplace()),
 					replacementText, replacementHours, replacement.getStartDate(), displayedStartTime, displayedEndDate,
 					displayedEndTime };
 

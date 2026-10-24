@@ -34,8 +34,7 @@ public final class WorkHoursService {
 		for (Intervention intervention : planning.getInterventions()) {
 			Employee assignedEmployee = intervention.getEmployee();
 
-			if (assignedEmployee != null && assignedEmployee.getFirstName().equals(employee.getFirstName())
-					&& assignedEmployee.getLastName().equals(employee.getLastName())) {
+			if (assignedEmployee != null && assignedEmployee.getEmployeeID().equals(employee.getEmployeeID())) {
 
 				totalHours += intervention.getDurationHours();
 			}
@@ -56,7 +55,8 @@ public final class WorkHoursService {
 					intervention.getStartTime());
 			LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
 
-			if (assignedEmployee != null && assignedEmployee == employee && interventionEnd.isAfter(weekStart)
+			if (assignedEmployee != null && assignedEmployee.getEmployeeID().equals(employee.getEmployeeID())
+					&& interventionEnd.isAfter(weekStart)
 					&& interventionStart.isBefore(weekEnd)) {
 
 				totalHours += getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
@@ -78,8 +78,7 @@ public final class WorkHoursService {
 					intervention.getStartTime());
 			LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
 
-			if (assignedEmployee != null && assignedEmployee.getFirstName().equals(employee.getFirstName())
-					&& assignedEmployee.getLastName().equals(employee.getLastName())
+			if (assignedEmployee != null && assignedEmployee.getEmployeeID().equals(employee.getEmployeeID())
 					&& interventionEnd.isAfter(monthStart) && interventionStart.isBefore(monthEnd)) {
 				totalHours += getInterventionHoursInPeriod(intervention, monthStart, monthEnd);
 			}
@@ -133,8 +132,7 @@ public final class WorkHoursService {
 
 			for (Intervention current : interventionsToAssign) {
 				Employee assigned = current.getEmployee();
-				boolean alreadyAssigned = assigned != null && assigned.getFirstName().equals(employee.getFirstName())
-						&& assigned.getLastName().equals(employee.getLastName());
+				boolean alreadyAssigned = assigned != null && assigned.getEmployeeID().equals(employee.getEmployeeID());
 
 				if (!alreadyAssigned) {
 					projectedHours += getInterventionHoursInPeriod(current, weekStart, weekEnd);

@@ -46,7 +46,7 @@ public class AbsenceService {
 
 			var request = requests.getFirst();
 
-			if (request.getEmployeeToReplace() != absence.getEmployee()) {
+			if (!request.getEmployeeToReplace().getEmployeeID().equals(absence.getEmployee().getEmployeeID())) {
 				throw new IOException("La demande ne correspond pas au salarié absent.");
 			}
 

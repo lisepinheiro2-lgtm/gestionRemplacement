@@ -1,13 +1,36 @@
 package gestion.repository;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Map;
+
 
 final class CsvFormat {
+
+	private static final ThreadLocal<Map<Path, String>> SNAPSHOT = new ThreadLocal<>();
+
+	@FunctionalInterface
+	interface CheckedAction {
+		void run() throws IOException;
+	}
+
+	static void withSnapshot(Map<Path, String> content, CheckedAction action) throws IOException {
+		if (SNAPSHOT.get() != null)
+			throw new IllegalStateException("Validation CSV déjà en cours.");
+
+		SNAPSHOT.set(Map.copyOf(content));
+		try {
+			action.run();
+		} finally {
+			SNAPSHOT.remove();
+		}
+	}
 
 	private CsvFormat() {
 	}
@@ -19,14 +42,21 @@ final class CsvFormat {
 
 	static <T> ArrayList<T> read(Path path, Parser<T> parser) throws IOException {
 
-		CsvStore.recover(path.toAbsolutePath().getParent());
+		Map<Path, String> snapshot = SNAPSHOT.get();
+
+		if (snapshot == null)
+			CsvStore.recover(path.toAbsolutePath().getParent());
 		ArrayList<T> result = new ArrayList<>();
 
-		if (Files.notExists(path))
+		if (snapshot == null && Files.notExists(path))
 			return result;
 		int lineNumber = 0;
 
-		try (var reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+		if (snapshot != null && !snapshot.containsKey(CsvStore.directory(path)))
+			throw new IOException("Fichier absent de l'aperçu de migration : " + path.getFileName());
+
+		try (var reader = snapshot == null ? Files.newBufferedReader(path, StandardCharsets.UTF_8)
+				: new BufferedReader(new StringReader(snapshot.get(CsvStore.directory(path))))) {
 
 			String line;
 
@@ -37,13 +67,13 @@ final class CsvFormat {
 				try {
 					result.add(parser.parse(line.split(";", -1)));
 				} catch (RuntimeException invalid) {
-					throw new IOException(path.getFileName() + ", ligne " + lineNumber + " : données invalides.");
+					throw new IOException(path.getFileName() + ", ligne " + lineNumber + " : " + invalid.getMessage(), invalid);
 				}
 			}
 
 		} catch (IOException e) {
 			throw new IOException("Lecture complète impossible : " + path.getFileName() + ", ligne " + lineNumber
-					+ ". Aucune ligne chargée.", e);
+					+ ". Aucune ligne chargée. " + e.getMessage(), e);
 		}
 
 		return result;

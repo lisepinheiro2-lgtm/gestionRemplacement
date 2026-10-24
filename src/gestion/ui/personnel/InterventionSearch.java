@@ -4,6 +4,7 @@ import java.text.Normalizer;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.MonthDay;
+import java.time.YearMonth;
 import java.util.Locale;
 import java.util.function.Predicate;
 
@@ -23,6 +24,11 @@ final class InterventionSearch {
 			return intervention -> true;
 
 		String dateText = query.replace('-', '/');
+
+		if (dateText.matches("\\d{1,2}")) {
+			int day = Integer.parseInt(dateText);
+			return day >= 1 && day <= 31 ? intervention -> occursOn(intervention, day) : intervention -> false;
+		}
 
 		if (dateText.matches("\\d{2}/\\d{2}(?:/(?:\\d{2}|\\d{4}))?")) {
 			try {
@@ -54,6 +60,28 @@ final class InterventionSearch {
 	private static String normalize(String value) {
 		return Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}+", "")
 				.toLowerCase(Locale.ROOT).strip().replaceAll("\\s+", " ");
+	}
+
+	private static boolean occursOn(Intervention intervention, int day) {
+		var range = DomainValidation.intervention(intervention);
+		LocalDate first = range.start().toLocalDate();
+		LocalDate last = range.end().minusNanos(1).toLocalDate();
+		YearMonth month = YearMonth.from(first);
+		YearMonth lastMonth = YearMonth.from(last);
+
+		while (true) {
+			if (month.isValidDay(day)) {
+				LocalDate date = month.atDay(day);
+
+				if (!date.isBefore(first) && !date.isAfter(last))
+					return true;
+			}
+
+			if (month.equals(lastMonth))
+				return false;
+
+			month = month.plusMonths(1);
+		}
 	}
 
 	private static boolean occursOn(Intervention intervention, MonthDay day) {

@@ -84,16 +84,19 @@ final class PersonnelTable extends JTable {
 		return component;
 	}
 
-	private boolean editable(int row, int column) {
-		return row >= 0 && row < getRowCount() && column >= 0 && column < getColumnCount()
-				&& isCellEditable(row, column);
+	private boolean supportsHalo(int row, int column) {
+		if (row < 0 || row >= getRowCount() || column < 0 || column >= getColumnCount())
+			return false;
+
+		int modelColumn = convertColumnIndexToModel(column);
+		return isCellEditable(row, column) || modelColumn == 4 || modelColumn == 5;
 	}
 
 	private void updateHover(Point point) {
 		int row = rowAtPoint(point);
 		int column = columnAtPoint(point);
 
-		if (!editable(row, column)) {
+		if (!supportsHalo(row, column)) {
 			row = -1;
 			column = -1;
 		}
@@ -120,7 +123,7 @@ final class PersonnelTable extends JTable {
 		int row = isEditing() ? getEditingRow() : getSelectionModel().getLeadSelectionIndex();
 		int column = isEditing() ? getEditingColumn() : getColumnModel().getSelectionModel().getLeadSelectionIndex();
 
-		if (!editable(row, column) || (!isEditing() && !isRowSelected(row))) {
+		if (!supportsHalo(row, column) || (!isEditing() && !isRowSelected(row))) {
 			row = -1;
 			column = -1;
 		}
@@ -299,10 +302,10 @@ final class PersonnelTable extends JTable {
 						paintHalo(g, rounded(rowBounds(row), 1.5), false);
 			}
 
-			if (editable(hoveredRow, hoveredColumn) && (hoveredRow != activeRow || hoveredColumn != activeColumn))
+			if (supportsHalo(hoveredRow, hoveredColumn) && (hoveredRow != activeRow || hoveredColumn != activeColumn))
 				paintHalo(g, rounded(getCellRect(hoveredRow, hoveredColumn, true), 2.5), false);
 
-			if (editable(activeRow, activeColumn) && (isEditing() || isRowSelected(activeRow)))
+			if (supportsHalo(activeRow, activeColumn) && (isEditing() || isRowSelected(activeRow)))
 				paintHalo(g, rounded(getCellRect(activeRow, activeColumn, true), isEditing() ? 1.5 : 2.5), true);
 		} finally {
 			g.dispose();
