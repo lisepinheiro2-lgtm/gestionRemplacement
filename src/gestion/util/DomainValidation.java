@@ -2,16 +2,20 @@ package gestion.util;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import gestion.model.*;
 
 public final class DomainValidation {
 
+	private static final Pattern UUID_FORMAT = Pattern.compile(
+			"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+
 	private DomainValidation() {
 	}
 
 	public static UUID uuid(String value) {
-		if (value == null || !value.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
+		if (value == null || !UUID_FORMAT.matcher(value).matches())
 			throw new IllegalArgumentException("UUID invalide : " + value);
 
 		return UUID.fromString(value);

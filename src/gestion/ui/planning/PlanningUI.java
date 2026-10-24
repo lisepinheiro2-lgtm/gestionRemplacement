@@ -23,7 +23,11 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -35,6 +39,9 @@ import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 
 import gestion.model.Intervention;
+import gestion.model.DateRange;
+import gestion.model.Client;
+import gestion.model.Employee;
 import gestion.service.ClientService;
 import gestion.service.PersonnelService;
 import gestion.service.PlanningService;
@@ -54,6 +61,35 @@ public class PlanningUI extends JPanel {
 	private JButton todayButton;
 	private JButton nextButton;
 	private JComboBox<String> viewBox;
+	private Map<LocalDate, List<Intervention>> visibleDays = Map.of();
+	private final Map<ViewPeriod, CachedView> views = new LinkedHashMap<>(4, 0.75f, true);
+
+	private record ViewPeriod(LocalDate start, boolean weekly) {
+
+		DateRange range() {
+			if (weekly)
+				return new DateRange(start, start.plusDays(6));
+
+			LocalDate first = start.with(DayOfWeek.MONDAY);
+			LocalDate last = start.plusMonths(1).minusDays(1).with(DayOfWeek.SUNDAY);
+			return new DateRange(first, last);
+		}
+	}
+
+	private record DisplayedIntervention(Intervention intervention, Client client, Employee employee,
+			LocalDateTime start, LocalDateTime end, String clientName, String employeeName) {
+
+		DisplayedIntervention(Intervention intervention) {
+			this(intervention, intervention.getClient(), intervention.getEmployee(),
+					LocalDateTime.of(intervention.getStartDate(), intervention.getStartTime()),
+					LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime()),
+					intervention.getClient().toString(),
+					intervention.getEmployee() == null ? "" : intervention.getEmployee().toString());
+		}
+	}
+
+	private record CachedView(List<DisplayedIntervention> content, Component component, boolean dark) {
+	}
 
 	public PlanningUI(PlanningService planning, PersonnelService personnel, ClientService clients,
 			RecurringInterventionService recurringInterventionList) {
@@ -276,10 +312,7 @@ public class PlanningUI extends JPanel {
 
 			dayColumn.add(dayPanel, BorderLayout.CENTER);
 
-			ArrayList<Intervention> dayInterventions = planning.getInterventionsForDay(currentDay);
-
-			dayInterventions
-					.sort(Comparator.comparing(Intervention::getStartDate).thenComparing(Intervention::getStartTime));
+			List<Intervention> dayInterventions = visibleDays.getOrDefault(currentDay, List.of());
 
 			for (Intervention intervention : dayInterventions) {
 				int startMinutes;
@@ -314,32 +347,9 @@ public class PlanningUI extends JPanel {
 					columnEndMinutes.set(columnIndex, endMinutes);
 				}
 
-				String employeeText;
-
-				if (intervention.getEmployee() == null) {
-					employeeText = "Non attribué";
-				} else {
-					employeeText = intervention.getEmployee().toString();
-				}
-
 				String startText = String.format("%02dh%02d", startMinutes / 60, startMinutes % 60);
 				String endText = String.format("%02dh%02d", (endMinutes / 60) % 24, endMinutes % 60);
-				String text = "<html><div style='text-align: center;'>" + intervention.getClient() + "<br>" + startText
-						+ " → " + endText + "<br>" + employeeText + "</div></html>";
-
-				JButton interventionButton = new JButton(text) {
-					@Override
-					protected void paintComponent(Graphics g) {
-						super.paintComponent(g);
-
-						LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(),
-								intervention.getEndTime());
-
-						if (!interventionEnd.isAfter(LocalDateTime.now())) {
-							UIUtils.drawPastStripes(g, getWidth(), getHeight());
-						}
-					}
-				};
+				JButton interventionButton = new PlanningInterventionButton(intervention, startText, endText);
 
 				interventionButton.setHorizontalAlignment(JLabel.CENTER);
 				interventionButton.setVerticalAlignment(JLabel.CENTER);
@@ -377,7 +387,6 @@ public class PlanningUI extends JPanel {
 		scrollPane.getVerticalScrollBar().setUnitIncrement(25);
 
 		planningPanel.add(scrollPane, BorderLayout.CENTER);
-		UIUtils.applyTheme(planningPanel);
 	}
 
 	private void displayMonth() {
@@ -411,9 +420,7 @@ public class PlanningUI extends JPanel {
 			dayLabel.setFont(new Font("Arial", Font.BOLD, 17));
 			dayPanel.add(dayLabel, BorderLayout.NORTH);
 
-			ArrayList<Intervention> dayInterventions = planning.getInterventionsForDay(day);
-			dayInterventions
-					.sort(Comparator.comparing(Intervention::getStartDate).thenComparing(Intervention::getStartTime));
+			List<Intervention> dayInterventions = visibleDays.getOrDefault(day, List.of());
 
 			JPanel interventionsPanel = new JPanel();
 			interventionsPanel.setOpaque(false);
@@ -451,31 +458,9 @@ public class PlanningUI extends JPanel {
 					continue;
 				}
 
-				String employeeText;
-
-				if (intervention.getEmployee() == null) {
-					employeeText = "Non attribué";
-				} else {
-					employeeText = intervention.getEmployee().toString();
-				}
-
 				String startText = String.format("%02dh%02d", startMinutes / 60, startMinutes % 60);
 				String endText = String.format("%02dh%02d", (endMinutes / 60) % 24, endMinutes % 60);
-				String text = "<html><div style='text-align: center;'>" + intervention.getClient() + "<br>" + startText
-						+ " → " + endText + "<br>" + employeeText + "</div></html>";
-				JButton interventionButton = new JButton(text) {
-
-					@Override
-					protected void paintComponent(Graphics g) {
-						super.paintComponent(g);
-						LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(),
-								intervention.getEndTime());
-
-						if (!interventionEnd.isAfter(LocalDateTime.now())) {
-							UIUtils.drawPastStripes(g, getWidth(), getHeight());
-						}
-					}
-				};
+				JButton interventionButton = new PlanningInterventionButton(intervention, startText, endText);
 
 				interventionButton.setHorizontalAlignment(JLabel.CENTER);
 				interventionButton.setVerticalAlignment(JLabel.CENTER);
@@ -495,21 +480,73 @@ public class PlanningUI extends JPanel {
 		scrollPane.getVerticalScrollBar().setUnitIncrement(25);
 
 		planningPanel.add(scrollPane, BorderLayout.CENTER);
-		UIUtils.applyTheme(planningPanel);
 	}
 
 	public void refreshPlanning() {
-		planningPanel.removeAll();
-
-		if (viewBox.getSelectedItem().equals("Semaine")) {
-			displayWeek();
-		} else {
-			displayMonth();
+		if (!SwingUtilities.isEventDispatchThread()) {
+			SwingUtilities.invokeLater(this::refreshPlanning);
+			return;
 		}
 
-		UIUtils.applyTheme(planningPanel);
+		boolean weekly = "Semaine".equals(viewBox.getSelectedItem());
+		ViewPeriod period = new ViewPeriod(weekly ? currentDate.with(DayOfWeek.MONDAY)
+				: currentDate.withDayOfMonth(1), weekly);
+		DateRange range = period.range();
+		List<Intervention> interventions = planning.getInterventionsForPeriod(range);
+		interventions.sort(Comparator.comparing(Intervention::getStartDate).thenComparing(Intervention::getStartTime));
+		List<DisplayedIntervention> content = interventions.stream().map(DisplayedIntervention::new).toList();
+		CachedView cached = views.get(period);
+
+		if (cached != null && cached.content().equals(content)) {
+			if (planningPanel.getComponentCount() == 0 || planningPanel.getComponent(0) != cached.component()) {
+				planningPanel.removeAll();
+				planningPanel.add(cached.component(), BorderLayout.CENTER);
+			}
+
+			if (cached.dark() != UIUtils.isDarkMode()) {
+				SwingUtilities.updateComponentTreeUI(cached.component());
+				UIUtils.applyTheme(cached.component());
+				views.put(period, new CachedView(content, cached.component(), UIUtils.isDarkMode()));
+			}
+		} else {
+			visibleDays = groupByDay(content, range);
+			planningPanel.removeAll();
+
+			if (weekly)
+				displayWeek();
+			else
+				displayMonth();
+
+			UIUtils.applyTheme(planningPanel);
+			views.put(period, new CachedView(content, planningPanel.getComponent(0), UIUtils.isDarkMode()));
+
+			if (views.size() > 3)
+				views.remove(views.keySet().iterator().next());
+
+			visibleDays = Map.of();
+		}
+
 		planningPanel.revalidate();
 		planningPanel.repaint();
+	}
+
+	private Map<LocalDate, List<Intervention>> groupByDay(List<DisplayedIntervention> content, DateRange period) {
+		Map<LocalDate, List<Intervention>> days = new HashMap<>();
+
+		for (DisplayedIntervention displayed : content) {
+			LocalDate first = displayed.start().toLocalDate();
+			LocalDate last = displayed.end().minusNanos(1).toLocalDate();
+
+			if (first.isBefore(period.start()))
+				first = period.start();
+			if (last.isAfter(period.end()))
+				last = period.end();
+
+			for (LocalDate day = first; !day.isAfter(last); day = day.plusDays(1))
+				days.computeIfAbsent(day, ignored -> new ArrayList<>()).add(displayed.intervention());
+		}
+
+		return days;
 	}
 
 	public ClientService getClients() {

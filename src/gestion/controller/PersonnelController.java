@@ -10,6 +10,7 @@ import gestion.model.Employee;
 import gestion.model.EmployeeAbsence;
 import gestion.model.EmployeeStatus;
 import gestion.model.EmployeeSummary;
+import gestion.model.HoursAlert;
 import gestion.service.AbsenceService;
 import gestion.service.PersonnelService;
 import gestion.service.PlanningService;
@@ -87,17 +88,17 @@ public final class PersonnelController {
 
 		List<EmployeeSummary> rows = new ArrayList<>();
 		LocalDateTime statusTime = LocalDateTime.now();
+		var assignedHours = hours.getHoursByEmployee(assignedDate, assignedMonthly);
 
 		for (Employee employee : personnel.getEmployees()) {
 
 			double expected = assignedMonthly ? employee.getContractHours() * 52 / 12 : employee.getContractHours();
-			double assigned = assignedMonthly ? hours.getMonthlyHours(employee, assignedDate)
-					: hours.getWeeklyHours(employee, assignedDate);
+			double assigned = assignedHours.getOrDefault(employee.getEmployeeID(), 0.0);
 			double remaining = expected - assigned;
+			HoursAlert alert = hours.getHoursAlert(employee, assignedDate, assignedMonthly, assigned);
 
 			rows.add(new EmployeeSummary(employee, absences.getStatusAt(employee, statusTime), assigned, remaining,
-					hours.getHoursAlert(employee, assignedDate, assignedMonthly),
-					hours.getHoursAlert(employee, assignedDate, assignedMonthly)));
+					alert, alert));
 		}
 		return rows;
 	}

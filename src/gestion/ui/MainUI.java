@@ -82,20 +82,8 @@ public class MainUI {
 		cardLayout = new CardLayout();
 		mainPanel = new JPanel(cardLayout);
 		homePanel = createHomePanel();
-		personnelPanel = new PersonnelPanel(
-				new PersonnelController(personnel, absenceList, new WorkHoursService(planning)), planning,
-				recurringInterventionList);
-		planningPanel = new PlanningUI(planning, personnel, clients, recurringInterventionList);
-		replacementPanel = new ReplacementUI(replacementList, personnel, planning);
-		clientPanel = new ClientUI(clients);
-		interventionPanel = new InterventionUI(planning, recurringInterventionList, clients, personnel);
 
 		mainPanel.add(homePanel, "HOME");
-		mainPanel.add(personnelPanel, "PERSONNEL");
-		mainPanel.add(planningPanel, "PLANNING");
-		mainPanel.add(replacementPanel, "REPLACEMENTS");
-		mainPanel.add(clientPanel, "CLIENTS");
-		mainPanel.add(interventionPanel, "INTERVENTIONS");
 
 		frame.setLayout(new BorderLayout());
 
@@ -152,17 +140,22 @@ public class MainUI {
 	}
 
 	private void interventionUI() {
-		cardLayout.show(mainPanel, "INTERVENTIONS");
-		navigationHeader.setPageTitle("Interventions");
-		homeButton.setVisible(true);
+		if (interventionPanel == null) {
+			interventionPanel = new InterventionUI(planning, recurringInterventionList, clients, personnel);
+			addPage(interventionPanel, "INTERVENTIONS");
+		}
 
-		SwingUtilities.invokeLater(() -> interventionPanel.refreshIntervention());
+		showPage("INTERVENTIONS", "Interventions");
+		SwingUtilities.invokeLater(interventionPanel::refreshIntervention);
 	}
 
 	private void clientUI() {
-		cardLayout.show(mainPanel, "CLIENTS");
-		navigationHeader.setPageTitle("Clients");
-		homeButton.setVisible(true);
+		if (clientPanel == null) {
+			clientPanel = new ClientUI(clients);
+			addPage(clientPanel, "CLIENTS");
+		}
+
+		showPage("CLIENTS", "Clients");
 	}
 
 	private void homeUI() {
@@ -172,23 +165,46 @@ public class MainUI {
 	}
 
 	private void personnelUI() {
-		cardLayout.show(mainPanel, "PERSONNEL");
-		navigationHeader.setPageTitle("Personnel");
-		personnelPanel.refreshTable();
-		homeButton.setVisible(true);
+		if (personnelPanel == null) {
+			personnelPanel = new PersonnelPanel(
+					new PersonnelController(personnel, absenceList, new WorkHoursService(planning)), planning,
+					recurringInterventionList);
+			addPage(personnelPanel, "PERSONNEL");
+		} else {
+			personnelPanel.refreshTable();
+		}
+
+		showPage("PERSONNEL", "Personnel");
 	}
 
 	private void planningUI() {
+		if (planningPanel == null) {
+			planningPanel = new PlanningUI(planning, personnel, clients, recurringInterventionList);
+			addPage(planningPanel, "PLANNING");
+		}
+
+		showPage("PLANNING", "Planning");
 		planningPanel.refreshPlanning();
-		cardLayout.show(mainPanel, "PLANNING");
-		navigationHeader.setPageTitle("Planning");
-		homeButton.setVisible(true);
 	}
 
 	private void replacementUI() {
+		if (replacementPanel == null) {
+			replacementPanel = new ReplacementUI(replacementList, personnel, planning);
+			addPage(replacementPanel, "REPLACEMENTS");
+		}
+
 		replacementPanel.refreshTable();
-		cardLayout.show(mainPanel, "REPLACEMENTS");
-		navigationHeader.setPageTitle("Remplacements");
+		showPage("REPLACEMENTS", "Remplacements");
+	}
+
+	private void addPage(JPanel panel, String name) {
+		UIUtils.applyTheme(panel);
+		mainPanel.add(panel, name);
+	}
+
+	private void showPage(String name, String title) {
+		cardLayout.show(mainPanel, name);
+		navigationHeader.setPageTitle(title);
 		homeButton.setVisible(true);
 	}
 

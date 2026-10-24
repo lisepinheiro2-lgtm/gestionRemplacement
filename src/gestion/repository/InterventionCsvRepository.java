@@ -21,7 +21,7 @@ public final class InterventionCsvRepository {
 
 	public ArrayList<Intervention> load(List<Employee> employees, List<Client> clients) {
 
-		ArrayList<Intervention> checked = new ArrayList<>();
+		OverlapIndex overlaps = new OverlapIndex();
 		Set<UUID> interventionIds = new HashSet<>();
 
 		return CsvFormat.readUnchecked(path, cells -> {
@@ -42,22 +42,34 @@ public final class InterventionCsvRepository {
 				intervention.setRecurringId(cells[8]);
 			if (!cells[9].isEmpty())
 				intervention.setSourceAbsenceId(cells[9]);
-			validateOverlap(intervention, checked);
-			checked.add(intervention);
+			overlaps.add(intervention);
 
 			return intervention;
 		});
 	}
 
-	private static void validateOverlap(Intervention candidate, List<Intervention> checked) {
+	private static final class OverlapIndex {
 
-		DateTimeRange range = DomainValidation.intervention(candidate);
+		private final Map<UUID, NavigableMap<LocalDateTime, DateTimeRange>> employees = new HashMap<>();
 
-		for (Intervention other : checked)
-			if (candidate.getEmployee() != null && other.getEmployee() != null
-					&& candidate.getEmployee().getEmployeeID().equals(other.getEmployee().getEmployeeID())
-					&& gestion.util.PeriodUtils.hasDateTimeOverlap(range, DomainValidation.intervention(other)))
+		void add(Intervention intervention) {
+			DateTimeRange range = DomainValidation.intervention(intervention);
+			Employee employee = intervention.getEmployee();
+
+			if (employee == null)
+				return;
+
+			NavigableMap<LocalDateTime, DateTimeRange> periods = employees.computeIfAbsent(
+					employee.getEmployeeID(), id -> new TreeMap<>());
+			var previous = periods.floorEntry(range.start());
+			var next = periods.ceilingEntry(range.start());
+
+			if ((previous != null && previous.getValue().end().isAfter(range.start()))
+					|| (next != null && next.getKey().isBefore(range.end())))
 				throw new IllegalArgumentException("Un salarié ne peut effectuer deux interventions simultanées.");
+
+			periods.put(range.start(), range);
+		}
 	}
 
 	public void save(List<Intervention> interventions) {
@@ -65,17 +77,15 @@ public final class InterventionCsvRepository {
 		Set<UUID> savedIds = new HashSet<>();
 
 		StringBuilder content = new StringBuilder();
-		ArrayList<Intervention> checked = new ArrayList<>();
+		OverlapIndex overlaps = new OverlapIndex();
 
 		for (Intervention intervention : interventions) {
 
-			DomainValidation.intervention(intervention);
+			overlaps.add(intervention);
 
 			if (!savedIds.add(intervention.getInterventionID()))
 				throw new IllegalArgumentException("UUID intervention dupliqué : " + intervention.getInterventionID());
 
-			validateOverlap(intervention, checked);
-			checked.add(intervention);
 			Employee employee = intervention.getEmployee();
 
 			String employeeId = "";

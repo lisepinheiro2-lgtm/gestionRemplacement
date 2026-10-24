@@ -7,8 +7,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeSet;
+import java.util.UUID;
 
 import gestion.model.Employee;
 import gestion.model.HoursAlert;
@@ -51,12 +54,15 @@ public final class WorkHoursService {
 
 		for (Intervention intervention : planning.getInterventions()) {
 			Employee assignedEmployee = intervention.getEmployee();
+
+			if (assignedEmployee == null || !assignedEmployee.getEmployeeID().equals(employee.getEmployeeID()))
+				continue;
+
 			LocalDateTime interventionStart = LocalDateTime.of(intervention.getStartDate(),
 					intervention.getStartTime());
 			LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
 
-			if (assignedEmployee != null && assignedEmployee.getEmployeeID().equals(employee.getEmployeeID())
-					&& interventionEnd.isAfter(weekStart)
+			if (interventionEnd.isAfter(weekStart)
 					&& interventionStart.isBefore(weekEnd)) {
 
 				totalHours += getInterventionHoursInPeriod(intervention, weekStart, weekEnd);
@@ -74,17 +80,41 @@ public final class WorkHoursService {
 
 		for (Intervention intervention : planning.getInterventions()) {
 			Employee assignedEmployee = intervention.getEmployee();
+
+			if (assignedEmployee == null || !assignedEmployee.getEmployeeID().equals(employee.getEmployeeID()))
+				continue;
+
 			LocalDateTime interventionStart = LocalDateTime.of(intervention.getStartDate(),
 					intervention.getStartTime());
 			LocalDateTime interventionEnd = LocalDateTime.of(intervention.getEndDate(), intervention.getEndTime());
 
-			if (assignedEmployee != null && assignedEmployee.getEmployeeID().equals(employee.getEmployeeID())
-					&& interventionEnd.isAfter(monthStart) && interventionStart.isBefore(monthEnd)) {
+			if (interventionEnd.isAfter(monthStart) && interventionStart.isBefore(monthEnd)) {
 				totalHours += getInterventionHoursInPeriod(intervention, monthStart, monthEnd);
 			}
 		}
 
 		return totalHours;
+	}
+
+	public Map<UUID, Double> getHoursByEmployee(LocalDate date, boolean monthly) {
+		LocalDate start = monthly ? date.withDayOfMonth(1) : date.with(DayOfWeek.MONDAY);
+		LocalDateTime periodStart = start.atStartOfDay();
+		LocalDateTime periodEnd = (monthly ? start.plusMonths(1) : start.plusWeeks(1)).atStartOfDay();
+		Map<UUID, Double> hours = new HashMap<>();
+
+		for (Intervention intervention : planning.getInterventions()) {
+			Employee employee = intervention.getEmployee();
+
+			if (employee == null)
+				continue;
+
+			double portion = getInterventionHoursInPeriod(intervention, periodStart, periodEnd);
+
+			if (portion != 0)
+				hours.merge(employee.getEmployeeID(), portion, Double::sum);
+		}
+
+		return Map.copyOf(hours);
 	}
 
 	public double getProjectedWeeklyOverrun(Employee employee, Intervention intervention) {
