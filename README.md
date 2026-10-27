@@ -4,6 +4,16 @@ Application de bureau en **Java avec Swing** pour gérer le personnel, les clien
 
 Le projet est en développement. L'état ci-dessous a été relu dans les sources le **20 octobre 2026**. « Codé » signifie présent dans le code, sans garantir une validation récente de tous les parcours.
 
+## Portfolio public, droits et composants tiers
+
+Gestion+ est le projet portfolio de l'autrice du compte [lisepinheiro2-lgtm](https://github.com/lisepinheiro2-lgtm). Les sources restent publiques pour permettre leur consultation et l'évaluation technique de ses compétences.
+
+**Droits réservés sur ses créations originales uniquement**, avec une [permission gratuite d'évaluation technique](LICENSE.md) : consultation, copie, compilation, essais locaux sur données fictives et adaptations nécessaires à l'évaluation, notamment par les recruteurs. Les CSV de démonstration sont fictifs selon l'autrice. Les autres usages du code original nécessitent une autorisation selon ces conditions ; les modalités de contact y figurent.
+
+**Les composants tiers gardent leurs propres licences et droits de réutilisation**, y compris commerciale lorsque leur licence l'autorise : Raven et JSVG sous MIT, FlatLaf et FlatLaf Extras sous Apache 2.0. Voir les [attributions, textes de licence et limites de provenance](THIRD_PARTY_NOTICES.md). La licence MIT de Raven ne place pas l'ensemble de Gestion+ sous MIT, et les droits réservés de Gestion+ ne restreignent pas la licence de Raven.
+
+Ces mentions ne bloquent pas techniquement les copies et ne garantissent pas une exclusivité totale. Les droits de consultation et de fork prévus par les conditions de GitHub sont préservés.
+
 ## Documentation
 
 - [Architecture et noms actuels](docs/ARCHITECTURE.md)
