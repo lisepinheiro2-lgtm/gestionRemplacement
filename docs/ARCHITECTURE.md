@@ -1,3 +1,10 @@
+---
+summary: "Organisation du client Swing décrite au jalon du 20 octobre 2026."
+read_when:
+  - "retrouver les responsabilités des classes et les formats CSV du client"
+  - "préparer une évolution vers le serveur sans confondre historique et cible"
+---
+
 # Architecture du projet gestion
 
 État relu le **20 octobre 2026**. Cette page décrit le code présent, pas les fonctionnalités futures de la [feuille de route](ROADMAP.md). Les résultats d'exécution sont séparés dans [VALIDATION.md](VALIDATION.md).

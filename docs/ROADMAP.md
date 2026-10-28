@@ -1,3 +1,10 @@
+---
+summary: "Demandes fonctionnelles par écran avec repères stables et décisions ouvertes."
+read_when:
+  - "retrouver les fonctionnalités prévues Personnel Clients Planning et Archives"
+  - "préparer l’intégration des comptes et permissions avec le serveur"
+---
+
 # Feuille de route du projet gestion
 
 ## Décisions et livraison de fiabilisation du 20 octobre 2026

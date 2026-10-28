@@ -1,3 +1,10 @@
+---
+summary: "Parcours entre les classes de Personnel et notes historiques à recouper avec les sources."
+read_when:
+  - "retrouver les classes des salariés absences et compteurs d’heures"
+  - "distinguer le parcours Personnel de celui des remplacements"
+---
+
 # Page Personnel : carte des classes
 
 ## Mise à jour de fiabilisation — 20 octobre 2026

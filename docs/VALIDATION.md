@@ -1,3 +1,9 @@
+---
+summary: "Résultats historiques de tests et limites des preuves disponibles pour Swing."
+read_when:
+  - "examiner les validations les régressions et les vérifications restant à autoriser"
+---
+
 # Tests et état des validations
 
 ## Vérification de la fiabilisation — 20 octobre 2026

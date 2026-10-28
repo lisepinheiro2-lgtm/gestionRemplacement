@@ -1,3 +1,10 @@
+---
+summary: "Protections et limites documentées lors de la fiabilisation locale du 20 octobre 2026."
+read_when:
+  - "examiner les sauvegardes CSV et la récupération après erreur"
+  - "reprendre les liens entre absences interventions et remplacements"
+---
+
 # Fiabilisation de la version locale — 20 octobre 2026
 
 Les six CSV fournis avec ce projet sont un **jeu de données fictives**, confirmé comme tel par l'utilisatrice, et doivent être conservés dans le dépôt. Les noms, contrats, absences et affectations de ce jeu servent à la démonstration ; ils n'ont pas été remplacés ou convertis pendant la fiabilisation. Les journaux de récupération, temporaires et profils de recette locaux restent exclus de Git. D'éventuelles futures données réelles devront être conservées séparément du jeu de démonstration versionné.

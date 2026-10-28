@@ -1,3 +1,9 @@
+---
+summary: "Repères de l’interface Swing et des composants Raven au 20 octobre 2026."
+read_when:
+  - "travailler sur le design les thèmes et la navigation Swing"
+---
+
 # Accueil et composants Raven
 
 État relu le **20 octobre 2026**. L'accueil conserve trois rangées : Personnel / Clients, Planning / Remplacements, Interventions / Archives. Cinq accès sont actifs. **Archives reste désactivé avec « À venir »** : aucun écran d'archives n'est construit ; l'ancienne classe vide `ArchivedInterventionUI` a été retirée.

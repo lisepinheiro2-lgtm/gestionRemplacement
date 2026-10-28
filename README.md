@@ -16,6 +16,9 @@ Ces mentions ne bloquent pas techniquement les copies et ne garantissent pas une
 
 ## Documentation
 
+- [Commencer ici : sommaire de la documentation](docs/index.md)
+- [Vision d’ensemble Gestion+ : client, serveur et réunion future](docs/vision-ensemble.md)
+- [Chantier du serveur Spring Boot](https://github.com/lisepinheiro2-lgtm/gestionplus-server)
 - [Architecture et noms actuels](docs/ARCHITECTURE.md)
 - [Personnel et parcours entre classes](docs/PERSONNEL.md)
 - [Accueil et composants Raven](docs/INTERFACE-RAVEN.md)
