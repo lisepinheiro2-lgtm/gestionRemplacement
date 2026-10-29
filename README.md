@@ -1,4 +1,4 @@
-# Gestion
+# Gestion+
 
 Application de bureau en **Java avec Swing** pour gérer le personnel, les clients, les interventions et les remplacements. Le projet Eclipse s'appelle `gestion` ; le dépôt conserve son nom historique `gestionRemplacement`.
 
