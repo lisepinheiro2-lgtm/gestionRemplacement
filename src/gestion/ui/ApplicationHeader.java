@@ -4,7 +4,9 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
 import java.awt.Font;
 import java.awt.Image;
 import java.util.LinkedHashMap;
@@ -27,29 +29,52 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 	private final JButton home;
 	private final JButton account;
 	private final RavenDarkLightSwitch theme = new RavenDarkLightSwitch();
-	private final JPanel navigation = new JPanel(new java.awt.GridLayout(1, 6, 6, 0));
+	private final JPanel navigation = new JPanel(new java.awt.GridLayout(1, 6, 6, 0)) {
+		@Override
+		public void doLayout() {
+			super.doLayout();
+			int height = Math.min(36, getHeight());
+			int top = (getHeight() - height) / 2;
+			for (Component button : getComponents())
+				button.setBounds(button.getX(), top, button.getWidth(), height);
+		}
+	};
+	private final JPanel center = new JPanel(new BorderLayout(0, 6)) {
+		@Override
+		public void doLayout() {
+			super.doLayout();
+			if ("Accueil".equals(page.getText()) && page.getParent() == this) {
+				int width = Math.min(getWidth(), page.getPreferredSize().width);
+				int left = (ApplicationHeader.this.getWidth() - width) / 2 - getX();
+				left = Math.max(0, Math.min(left, getWidth() - width));
+				page.setBounds(left, page.getY(), width, page.getHeight());
+			}
+		}
+	};
 	private final Map<String, JButton> destinations = new LinkedHashMap<>();
 
 	public ApplicationHeader(Component parent, JButton home, Image image) {
 		super(new BorderLayout(16, 8));
 		this.home = home;
 
-		setBorder(BorderFactory.createEmptyBorder(14, 32, 14, 24));
+		setBorder(BorderFactory.createEmptyBorder(2, 32, 2, 24));
 		JPanel identity = new JPanel(new BorderLayout(12, 0));
 		identity.setOpaque(false);
-		JLabel logo = new JLabel(new ImageIcon(image.getScaledInstance(36, 36, Image.SCALE_SMOOTH)));
+		JLabel logo = new JLabel(new ImageIcon(image.getScaledInstance(64, 64, Image.SCALE_SMOOTH)));
 		JPanel words = new JPanel();
 		words.setOpaque(false);
 		words.setLayout(new BoxLayout(words, BoxLayout.Y_AXIS));
 		brand.setFont(new Font("Segoe UI", Font.BOLD, 18));
 		description.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+		words.add(Box.createVerticalGlue());
 		words.add(brand);
 		words.add(Box.createVerticalStrut(2));
 		words.add(description);
+		words.add(Box.createVerticalGlue());
 		identity.add(logo, BorderLayout.WEST);
 		identity.add(words, BorderLayout.CENTER);
 		page.setFont(new Font("Segoe UI", Font.BOLD, 12));
-		JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+		JPanel controls = new JPanel(new GridBagLayout());
 		controls.setOpaque(false);
 		home.setPreferredSize(new Dimension(108, 36));
 		theme.setPreferredSize(new Dimension(70, 36));
@@ -62,10 +87,14 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 		account.setToolTipText("Compte utilisateur — bientôt disponible");
 		account.getAccessibleContext().setAccessibleName("Compte utilisateur");
 
-		controls.add(theme);
-		controls.add(account);
+		GridBagConstraints constraints = new GridBagConstraints();
+		constraints.gridx = 0;
+		constraints.gridy = 0;
+		controls.add(theme, constraints);
+		constraints.gridx = 1;
+		constraints.insets = new Insets(0, 10, 0, 0);
+		controls.add(account, constraints);
 		add(identity, BorderLayout.WEST);
-		JPanel center = new JPanel(new BorderLayout(0, 6));
 		center.setOpaque(false);
 		navigation.setOpaque(false);
 		center.add(page, BorderLayout.CENTER);
@@ -75,20 +104,7 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 		addComponentListener(new java.awt.event.ComponentAdapter() {
 			@Override
 			public void componentResized(java.awt.event.ComponentEvent event) {
-				if (getWidth() >= 1160 && navigation.getParent() != center) {
-					remove(navigation);
-					center.remove(page);
-					center.add(page, BorderLayout.NORTH);
-					center.add(navigation, BorderLayout.CENTER);
-					page.setVisible("Interventions".equals(page.getText()) || "Accueil".equals(page.getText()));
-					revalidate();
-				} else if (getWidth() < 1160 && navigation.getParent() == center) {
-					center.remove(navigation);
-					center.add(page, BorderLayout.CENTER);
-					page.setVisible(true);
-					add(navigation, BorderLayout.SOUTH);
-					revalidate();
-				}
+				updateNavigationLayout();
 			}
 		});
 	}
@@ -120,9 +136,28 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 	public void setPageTitle(String title) {
 		page.setText(title);
 		navigation.setVisible(!"Accueil".equals(title));
-		page.setVisible(getWidth() < 1160 || "Interventions".equals(title) || "Accueil".equals(title));
+		updateNavigationLayout();
 		revalidate();
 		applyAppTheme(UIUtils.isDarkMode());
+	}
+
+	private void updateNavigationLayout() {
+		boolean inlineNavigation = getWidth() >= 1160 && !"Accueil".equals(page.getText());
+		if (inlineNavigation && navigation.getParent() != center) {
+			remove(navigation);
+			center.remove(page);
+			center.add(page, BorderLayout.NORTH);
+			center.add(navigation, BorderLayout.CENTER);
+			revalidate();
+		} else if (!inlineNavigation && navigation.getParent() == center) {
+			center.remove(navigation);
+			center.remove(page);
+			center.add(page, BorderLayout.CENTER);
+			add(navigation, BorderLayout.SOUTH);
+			revalidate();
+		}
+		page.setVisible(getWidth() < 1160 || "Interventions".equals(page.getText())
+				|| "Accueil".equals(page.getText()));
 	}
 
 	@Override
@@ -137,7 +172,7 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 		description.setForeground(muted);
 		page.setForeground(muted);
 		setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, border),
-				BorderFactory.createEmptyBorder(14, 32, 14, 24)));
+				BorderFactory.createEmptyBorder(2, 32, 2, 24)));
 		theme.setSelected(dark);
 		for (var entry : destinations.entrySet()) {
 			JButton button = entry.getValue();

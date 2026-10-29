@@ -72,6 +72,8 @@ public class MainUI {
 
 		UIUtils.installLookAndFeel();
 		frame = new JFrame("Gestion +");
+		frame.getRootPane().putClientProperty(com.formdev.flatlaf.FlatClientProperties.TITLE_BAR_SHOW_ICON, false);
+		frame.getRootPane().putClientProperty(com.formdev.flatlaf.FlatClientProperties.TITLE_BAR_SHOW_TITLE, false);
 
 		ImageIcon appIcon = new ImageIcon(MainUI.class.getResource("/icons/gestion-64.png"));
 		frame.setIconImage(appIcon.getImage());
