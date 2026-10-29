@@ -28,7 +28,7 @@ Les droits de consultation et de fork accordés par les conditions de GitHub pou
 
 Hors de cette permission, des droits déjà accordés et des exceptions légales applicables, une autorisation écrite préalable de l'autrice est nécessaire pour exploiter le code original en production, l'intégrer dans un autre produit ou service, le vendre, le proposer comme service ou le redistribuer au-delà du cadre d'évaluation et des droits de la plateforme.
 
-Pour un autre usage ou une licence adaptée, contacter l'autrice via les coordonnées publiques de son [profil GitHub](https://github.com/lisepinheiro2-lgtm), ou ouvrir une demande dans les [issues du dépôt](https://github.com/lisepinheiro2-lgtm/gestionRemplacement/issues), sans y publier d'informations confidentielles. L'absence de réponse ne vaut pas autorisation.
+Pour un autre usage ou une licence adaptée, contacter l'autrice via les coordonnées publiques de son [profil GitHub](https://github.com/lisepinheiro2-lgtm), ou ouvrir une demande dans les [issues du dépôt](https://github.com/lisepinheiro2-lgtm/gestionplus-client/issues), sans y publier d'informations confidentielles. L'absence de réponse ne vaut pas autorisation.
 
 Cette exigence ne s'applique pas à la réutilisation autonome des composants tiers selon leurs propres licences : une utilisation commerciale conforme à MIT ou Apache 2.0 est autorisée par leurs titulaires et ne constitue pas un vol.
 

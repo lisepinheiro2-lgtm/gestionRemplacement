@@ -18,7 +18,7 @@ Ce dépôt contient le **client de bureau Java Swing**, utilisable de façon aut
 | **Serveur Spring Boot** | Chantier séparé pour l'authentification, les autorisations et la persistance centralisée. Voir son [README](https://github.com/lisepinheiro2-lgtm/gestionplus-server#readme). |
 | **Connexion client–serveur** | Intégration à réaliser. Le client actuel ne demande ni serveur ni compte pour démarrer. |
 
-Le projet Eclipse et le package racine s'appellent `gestion`. Le dépôt, le module Java et le nœud de préférences conservent le nom historique `gestionRemplacement`.
+Le dépôt GitHub s'appelle désormais `gestionplus-client`. Le projet Eclipse et le package racine s'appellent `gestion` ; le module Java et le nœud de préférences conservent le nom historique `gestionRemplacement`.
 
 ## Fonctionnalités présentes
 

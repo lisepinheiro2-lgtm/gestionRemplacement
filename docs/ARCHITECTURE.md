@@ -11,7 +11,7 @@ read_when:
 
 ## Noms et arborescence
 
-Le projet Eclipse et le package racine se nomment `gestion`. Le dépôt GitHub, le module Java et le nœud de préférences conservent encore le nom historique `gestionRemplacement`.
+Le dépôt GitHub se nomme désormais `gestionplus-client`. Le projet Eclipse et le package racine se nomment `gestion` ; le module Java et le nœud de préférences conservent le nom historique `gestionRemplacement`.
 
 ```text
 src/
