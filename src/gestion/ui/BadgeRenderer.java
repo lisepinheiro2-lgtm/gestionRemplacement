@@ -11,8 +11,6 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 public class BadgeRenderer extends DefaultTableCellRenderer {
 	private Color accent;
-	private boolean selected;
-	private Color selection;
 
 	public BadgeRenderer() {
 		setHorizontalAlignment(JLabel.CENTER);
@@ -30,8 +28,6 @@ public class BadgeRenderer extends DefaultTableCellRenderer {
 			boolean hasFocus, int row, int column) {
 		super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 		accent = colorFor(value);
-		selected = isSelected;
-		selection = table.getSelectionBackground();
 		setForeground(accent);
 		String text = value == null ? "" : value.toString();
 		NavigationIcon.Kind kind = "Récurrent".equals(text) ? NavigationIcon.Kind.RECURRING
@@ -48,10 +44,10 @@ public class BadgeRenderer extends DefaultTableCellRenderer {
 		Graphics2D g = (Graphics2D) graphics.create();
 		try {
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			if (selected) {
-				g.setColor(selection);
-				g.fillRect(0, 0, getWidth(), getHeight());
-			}
+			// The label stays transparent so its background cannot cover the badge.
+			// Paint the renderer's row color, including striping and selection, first.
+			g.setColor(getBackground());
+			g.fillRect(0, 0, getWidth(), getHeight());
 			if (accent != null) {
 				int width = Math.min(Math.max(0, getWidth() - 12), 260);
 				int x = (getWidth() - width) / 2;

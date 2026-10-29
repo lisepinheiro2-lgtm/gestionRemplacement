@@ -30,6 +30,8 @@ public final class HomeCardButton extends RavenStyledButton implements AppThemeA
 	private final NavigationIcon.Kind kind;
 	private final Color accent;
 	private final boolean available;
+	private double contentScale = 1;
+	private boolean darkTheme;
 
 	public HomeCardButton(String title, String subtitle, NavigationIcon.Kind kind, Color accent, boolean available) {
 		this.kind = kind;
@@ -81,6 +83,7 @@ public final class HomeCardButton extends RavenStyledButton implements AppThemeA
 
 	@Override
 	public void applyAppTheme(boolean dark) {
+		darkTheme = dark;
 		Color surface = dark ? new Color(33, 42, 56) : Color.WHITE;
 		Color line = dark ? new Color(51, 63, 80) : new Color(222, 229, 238);
 		Color foreground = dark ? new Color(237, 242, 249) : new Color(30, 43, 63);
@@ -88,7 +91,8 @@ public final class HomeCardButton extends RavenStyledButton implements AppThemeA
 		Color hover = dark ? new Color(40, 52, 70) : new Color(245, 249, 255);
 
 		putClientProperty("FlatLaf.style",
-				"arc:22;margin:18,22,18,22;borderWidth:1;focusWidth:2;innerFocusWidth:0;" + "background:" + hex(surface)
+				"arc:" + scaled(22) + ";margin:" + scaled(18) + "," + scaled(22) + "," + scaled(18) + ","
+						+ scaled(22) + ";borderWidth:1;focusWidth:2;innerFocusWidth:0;background:" + hex(surface)
 						+ ";borderColor:" + hex(line) + ";hoverBackground:" + hex(hover) + ";hoverBorderColor:"
 						+ hex(accent) + ";focusedBorderColor:" + hex(accent) + ";focusColor:" + hex(accent)
 						+ ";disabledBackground:" + hex(surface) + ";disabledBorderColor:" + hex(line));
@@ -96,15 +100,15 @@ public final class HomeCardButton extends RavenStyledButton implements AppThemeA
 		heading.setForeground(available ? foreground : muted);
 		description.setForeground(muted);
 		status.setForeground(muted);
-		arrow.setIcon(available ? new NavigationIcon(NavigationIcon.Kind.ARROW, 18, muted) : null);
+		arrow.setIcon(available ? new NavigationIcon(NavigationIcon.Kind.ARROW, scaled(18), muted) : null);
 
 		illustration.setIcon(new Icon() {
 			public int getIconWidth() {
-				return 54;
+				return scaled(54);
 			}
 
 			public int getIconHeight() {
-				return 54;
+				return scaled(54);
 			}
 
 			public void paintIcon(Component c, Graphics graphics, int x, int y) {
@@ -112,11 +116,31 @@ public final class HomeCardButton extends RavenStyledButton implements AppThemeA
 				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				Color tint = available ? accent : muted;
 				g.setColor(new Color(tint.getRed(), tint.getGreen(), tint.getBlue(), dark ? 40 : 22));
-				g.fill(new RoundRectangle2D.Double(x, y, 54, 54, 17, 17));
-				new NavigationIcon(kind, 27, tint).paintIcon(c, g, x + 14, y + 13);
+				g.fill(new RoundRectangle2D.Double(x, y, scaled(54), scaled(54), scaled(17), scaled(17)));
+				new NavigationIcon(kind, scaled(27), tint).paintIcon(c, g, x + scaled(14), y + scaled(13));
 				g.dispose();
 			}
 		});
+	}
+
+	void setContentScale(double scale) {
+		if (Math.abs(contentScale - scale) < .001)
+			return;
+		contentScale = scale;
+		heading.setFont(heading.getFont().deriveFont((float) (18 * scale)));
+		description.setFont(description.getFont().deriveFont((float) (12 * scale)));
+		status.setFont(status.getFont().deriveFont((float) (11 * scale)));
+		// BoxLayout may retain the previous label widths while a hidden page is resized.
+		java.awt.Container textColumn = heading.getParent();
+		((BoxLayout) textColumn.getLayout()).invalidateLayout(textColumn);
+		((BorderLayout) getLayout()).setHgap(scaled(18));
+		setPreferredSize(new Dimension(scaled(400), scaled(144)));
+		setMinimumSize(new Dimension(scaled(270), scaled(110)));
+		applyAppTheme(darkTheme);
+	}
+
+	private int scaled(int value) {
+		return (int) Math.round(value * contentScale);
 	}
 
 	private static String hex(Color color) {

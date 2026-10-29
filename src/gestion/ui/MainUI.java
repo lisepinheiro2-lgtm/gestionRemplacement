@@ -76,7 +76,10 @@ public class MainUI {
 		frame.getRootPane().putClientProperty(com.formdev.flatlaf.FlatClientProperties.TITLE_BAR_SHOW_TITLE, false);
 
 		ImageIcon appIcon = new ImageIcon(MainUI.class.getResource("/icons/gestion-64.png"));
-		frame.setIconImage(appIcon.getImage());
+		ImageIcon taskbarIcon = new ImageIcon(MainUI.class.getResource("/icons/gestion-taskbar.png"));
+		frame.setIconImages(java.util.stream.IntStream.of(16, 24, 32, 48, 64, 128, 256)
+				.mapToObj(size -> taskbarIcon.getImage().getScaledInstance(size, size, java.awt.Image.SCALE_SMOOTH))
+				.toList());
 		configureFrameSize();
 		frame.setMinimumSize(new Dimension(760, 650));
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

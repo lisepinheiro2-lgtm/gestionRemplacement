@@ -20,6 +20,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableCellRenderer;
 
 import gestion.controller.PersonnelController;
 import gestion.model.DateRange;
@@ -67,20 +68,12 @@ public final class PersonnelPanel extends JPanel {
 		JPanel header = new JPanel(new BorderLayout(1, 6));
 		header.add(createInputPanel(), BorderLayout.NORTH);
 		header.add(hoursHeader, BorderLayout.CENTER);
-		JPanel titles = new JPanel(new GridLayout(1, 6));
-		String[] titleText = { "Nom", "Prénom", "Contrat hebdo", "Statut", "Heures attribuées", "Heures restantes" };
-
-		for (String text : titleText) {
-			JLabel title = new JLabel(text, JLabel.CENTER);
-			title.setFont(title.getFont().deriveFont(title.getFont().getSize2D() + 2f));
-			title.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
-			titles.add(title);
-		}
-
-		header.add(titles, BorderLayout.SOUTH);
-
-		header.setPreferredSize(new Dimension(0, header.getPreferredSize().height));
 		configureTable();
+		table.getColumnModel().getColumn(2).setHeaderValue("Contrat hebdo");
+		table.getTableHeader().setPreferredSize(new Dimension(0, 32));
+		table.getTableHeader().setReorderingAllowed(false);
+		header.add(table.getTableHeader(), BorderLayout.SOUTH);
+		header.setPreferredSize(new Dimension(0, header.getPreferredSize().height));
 
 		JScrollPane scroll = new JScrollPane(table);
 		scroll.setBorder(BorderFactory.createEmptyBorder());
@@ -174,6 +167,9 @@ public final class PersonnelPanel extends JPanel {
 		});
 
 		table.setRowHeight(25);
+		DefaultTableCellRenderer centeredText = new DefaultTableCellRenderer();
+		centeredText.setHorizontalAlignment(JLabel.CENTER);
+		table.setDefaultRenderer(Object.class, centeredText);
 		table.getColumnModel().getColumn(3).setCellRenderer(new PersonnelStatusRenderer(model));
 
 		PersonnelHoursRenderer hoursRenderer = new PersonnelHoursRenderer(model);

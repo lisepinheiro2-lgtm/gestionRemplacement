@@ -19,6 +19,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 import gestion.model.Employee;
@@ -275,7 +276,7 @@ public class ReplacementUI extends JPanel {
 	}
 
 	private void createTable() {
-		String[] columns = { "Employé à remplacer", "Attribution", "À attribuer / total",
+		String[] columns = { "Employé à remplacer", "Attribution future", "À attribuer (futur) / total",
 				"Heures total / restantes", "Début", "Fin" };
 
 		tableModel = new DefaultTableModel(columns, 0) {
@@ -293,6 +294,9 @@ public class ReplacementUI extends JPanel {
 				return replacementTooltips.get(convertRowIndexToModel(row));
 			}
 		};
+		DefaultTableCellRenderer centeredText = new DefaultTableCellRenderer();
+		centeredText.setHorizontalAlignment(JLabel.CENTER);
+		replacementTable.setDefaultRenderer(Object.class, centeredText);
 		replacementTable.getColumnModel().getColumn(1).setCellRenderer(new BadgeRenderer() {
 			@Override
 			protected java.awt.Color colorFor(Object value) {
@@ -301,7 +305,7 @@ public class ReplacementUI extends JPanel {
 						: String.valueOf(value).startsWith("Attribué") ? UIUtils.getTurquoiseColor() : UIUtils.getVioletColor();
 			}
 		});
-		int[] widths = { 195, 190, 145, 180, 170, 170 };
+		int[] widths = { 195, 190, 200, 180, 170, 170 };
 		for (int column = 0; column < widths.length; column++) {
 			replacementTable.getColumnModel().getColumn(column).setPreferredWidth(widths[column]);
 			replacementTable.getColumnModel().getColumn(column).setMinWidth(widths[column] - 15);

@@ -151,6 +151,7 @@ final class PersonnelTable extends JTable {
 		Component component = super.prepareEditor(editor, row, column);
 
 		if (component instanceof JTextField field) {
+			field.setHorizontalAlignment(JTextField.CENTER);
 			styledEditor = field;
 			originalEditorBorder = field.getBorder();
 			Insets insets = field.getInsets();

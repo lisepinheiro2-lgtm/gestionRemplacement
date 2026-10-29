@@ -37,6 +37,7 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 	private final JPanel heading = new JPanel();
 	private final JPanel cards = new JPanel(new GridLayout(3, 2, 16, 16));
 	private final HomeCardButton[] destinations;
+	private double contentScale = 1;
 
 	public HomePanel(Runnable employees, Runnable clients, Runnable planning, Runnable replacements,
 			Runnable interventions) {
@@ -101,14 +102,38 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 
 	@Override
 	public void doLayout() {
+		double scale = Math.max(1, Math.min(getWidth() / 1366d, getHeight() / 680d));
+		if (Math.abs(contentScale - scale) >= .001) {
+			contentScale = scale;
+			title.setFont(title.getFont().deriveFont((float) (24 * contentScale)));
+			subtitle.setFont(subtitle.getFont().deriveFont((float) (12 * contentScale)));
+			date.setFont(date.getFont().deriveFont((float) (14 * contentScale)));
+			greeting.setFont(greeting.getFont().deriveFont((float) (11 * contentScale)));
+			((BoxLayout) date.getParent().getLayout()).invalidateLayout(date.getParent());
+			calendar.setPreferredSize(new Dimension(scaled(40), scaled(40)));
+			calendar.setIcon(new NavigationIcon(NavigationIcon.Kind.CALENDAR, scaled(24), new Color(105, 236, 243)));
+			((BorderLayout) heading.getLayout()).setVgap(scaled(7));
+			((BorderLayout) dateCard.getLayout()).setHgap(scaled(12));
+			dateCard.setBorder(BorderFactory.createEmptyBorder(scaled(10), scaled(12), scaled(10), scaled(14)));
+			for (HomeCardButton button : destinations)
+				button.setContentScale(contentScale);
+		}
 		boolean shortWindow = getHeight() > 0 && getHeight() < 580;
 		java.awt.Insets padding = shortWindow ? new java.awt.Insets(16, 24, 16, 24)
-				: new java.awt.Insets(28, 32, 30, 32);
+				: new java.awt.Insets(scaled(28), scaled(32), scaled(30), scaled(32));
 		if (!getInsets().equals(padding))
 			setBorder(BorderFactory.createEmptyBorder(padding.top, padding.left, padding.bottom, padding.right));
-		((BorderLayout) getLayout()).setVgap(shortWindow ? 16 : 26);
-		((GridLayout) cards.getLayout()).setVgap(shortWindow ? 12 : 16);
+		((BorderLayout) getLayout()).setVgap(shortWindow ? 16 : scaled(26));
+		((GridLayout) cards.getLayout()).setVgap(shortWindow ? 12 : scaled(16));
+		((GridLayout) cards.getLayout()).setHgap(scaled(16));
 		super.doLayout();
+		// Bound extreme aspect ratios without stretching cards independently of their content.
+		cards.setSize(cards.getWidth(), Math.max(0, Math.min(cards.getHeight(),
+				3 * scaled(176) + 2 * ((GridLayout) cards.getLayout()).getVgap())));
+	}
+
+	private int scaled(int value) {
+		return (int) Math.round(value * contentScale);
 	}
 
 	@Override
@@ -120,7 +145,7 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 		subtitle.setForeground(muted);
 		date.setForeground(foreground);
 		greeting.setForeground(muted);
-		calendar.setIcon(new NavigationIcon(NavigationIcon.Kind.CALENDAR, 24, new Color(105, 236, 243)));
+		calendar.setIcon(new NavigationIcon(NavigationIcon.Kind.CALENDAR, scaled(24), new Color(105, 236, 243)));
 		introduction.repaint();
 
 		for (HomeCardButton button : destinations)
@@ -150,19 +175,22 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 			int width = HomePanel.this.getWidth() - HomePanel.this.getInsets().left
 					- HomePanel.this.getInsets().right;
 			boolean shortWindow = HomePanel.this.getHeight() > 0 && HomePanel.this.getHeight() < 580;
-			return new Dimension(0, width > 0 && width < 650 ? 152 : shortWindow ? 88 : 104);
+			return new Dimension(0, width > 0 && width < scaled(650) ? scaled(152) : shortWindow ? 88 : scaled(104));
 		}
 
 		@Override
 		public void doLayout() {
 			int width = getWidth();
-			int cardWidth = Math.min(Math.max(224, date.getPreferredSize().width + 86), Math.max(0, width - 48));
-			boolean compact = width < 650;
-			int headingWidth = Math.max(0, compact ? width - 48 : width - cardWidth - 76);
-			heading.setBounds(24, compact ? 25 : Math.max(22, (getHeight() - 58) / 2 + 3), headingWidth, 58);
-			int cardHeight = compact ? 60 : Math.min(68, getHeight() - 20);
-			dateCard.setBounds(compact ? 24 : width - cardWidth - 20,
-					compact ? 80 : (getHeight() - cardHeight) / 2, cardWidth, cardHeight);
+			int cardWidth = Math.min(Math.max(scaled(224), date.getPreferredSize().width + scaled(86)),
+					Math.max(0, width - scaled(48)));
+			boolean compact = width < scaled(650);
+			int headingWidth = Math.max(0, compact ? width - scaled(48) : width - cardWidth - scaled(76));
+			heading.setBounds(scaled(24),
+					compact ? scaled(25) : Math.max(scaled(22), (getHeight() - scaled(58)) / 2 + scaled(3)),
+					headingWidth, scaled(58));
+			int cardHeight = compact ? scaled(60) : Math.min(scaled(68), getHeight() - scaled(20));
+			dateCard.setBounds(compact ? scaled(24) : width - cardWidth - scaled(20),
+					compact ? scaled(80) : (getHeight() - cardHeight) / 2, cardWidth, cardHeight);
 		}
 
 		@Override
@@ -190,7 +218,7 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 			g.setColor(new Color(23, 30, 42, 65));
 			g.fill(shape);
 			g.setColor(new Color(0, 217, 237));
-			g.fillRoundRect(24, heading.getY() - 12, 24, 4, 4, 4);
+			g.fillRoundRect(scaled(24), heading.getY() - scaled(12), scaled(24), scaled(4), scaled(4), scaled(4));
 			g.dispose();
 		}
 	}
@@ -210,7 +238,7 @@ public final class HomePanel extends JPanel implements AppThemeAware {
 			g.setColor(transparent(cyan, 105));
 			g.draw(shape);
 			g.setColor(transparent(cyan, 35));
-			g.fillRoundRect(12, (getHeight() - 40) / 2, 40, 40, 10, 10);
+			g.fillRoundRect(scaled(12), (getHeight() - scaled(40)) / 2, scaled(40), scaled(40), scaled(10), scaled(10));
 			g.dispose();
 		}
 	}
