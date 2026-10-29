@@ -1,11 +1,27 @@
 ---
-summary: "Demandes fonctionnelles par écran avec repères stables et décisions ouvertes."
+summary: "Demandes par écran et décisions sur structures, droits, archives, facturation, concurrence et secours hors ligne."
 read_when:
   - "retrouver les fonctionnalités prévues Personnel Clients Planning et Archives"
   - "préparer l’intégration des comptes et permissions avec le serveur"
+  - "retrouver les décisions DEC01–DEC06 du 29 octobre 2026"
 ---
 
 # Feuille de route du projet gestion
+
+## Décisions transversales du 29 octobre 2026
+
+**Précisions de conception, sans livraison de code.** Cette section complète les demandes ci-dessous ; les états techniques historiques ne sont pas réévalués. La référence détaillée commune est la [vision d'ensemble — décisions du 29 octobre](vision-ensemble.md#decisions-metier-2026-10-29).
+
+| Repère commun | Besoin retenu et lien au carnet client |
+| --- | --- |
+| [DEC01 — Structures](vision-ensemble.md#dec-structures) | Plusieurs structures indépendantes et données isolées côté serveur. Le choix compte unique multi-structures ou comptes séparés reste explicitement ouvert. |
+| [DEC02 — Droits](vision-ensemble.md#dec-droits) | Gestion par responsables liés et secrétaires dans leur périmètre ; matrice consulter/créer/modifier/supprimer à préciser. Concerne SOC07 et CPT01–CPT04. |
+| [DEC03 — Historique](vision-ensemble.md#dec-historique) | Conserver les documents après départ selon les règles de conservation ; garder les interventions annulées avec une alerte « facturation à déterminer », puis une décision habilitée facturée/non facturée. Concerne INT01 et ADM02–ADM05 ; préserver aussi l'alerte future sur le passé non attribué sans présumer qu'une intervention a été effectuée. |
+| [DEC04 — Concurrence](vision-ensemble.md#dec-concurrence) | Verrou temporaire côté serveur et information de l'autre utilisateur, plus contrôle final à l'enregistrement ; aucune modification concurrente écrasée silencieusement. Concerne notamment PLA, INT et RMP. |
+| [DEC05 — Secours hors ligne](vision-ensemble.md#dec-hors-ligne) | ADMIN_EMERGENCY utile sur poste autorisé, avec restrictions à définir ; authentification locale sécurisée, chiffrement, audit et réconciliation. « Toutes les opérations » ne vaut pas accès illimité validé. |
+| [DEC06 — Documents](vision-ensemble.md#dec-documents) | Administrateur : accès documentaire complet dans sa structure ; comptable : seules pièces nécessaires à sa mission. Catégories, droits et stockage à détailler. Aucun accès aux secrets d'authentification. Concerne SOC07 et ADM01–ADM07. |
+
+L'interface Swing devra présenter les périmètres et les conflits sans tenir lieu de contrôle d'autorisation. Documents et Archives restent des chantiers ; ne pas transformer ces décisions en fonctionnalités annoncées disponibles. Les paramètres encore ouverts sont regroupés dans la référence commune. Aucun test, build, serveur, migration ou changement Git réalisé par cette mise à jour.
 
 ## Décisions et livraison de fiabilisation du 20 octobre 2026
 

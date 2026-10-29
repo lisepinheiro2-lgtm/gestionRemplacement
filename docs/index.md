@@ -17,6 +17,7 @@ Gestion+ est suivi comme un même projet métier, actuellement réparti entre ce
 | Besoin | Document de référence |
 | --- | --- |
 | Comprendre le produit, les responsabilités client/serveur et leur future réunion | [Vision d’ensemble](vision-ensemble.md) |
+| Retrouver les six décisions métier du 29 octobre : structures, droits, archives/facturation, concurrence, hors ligne et documents | [Référence commune DEC01–DEC06](vision-ensemble.md#decisions-metier-2026-10-29) |
 | Retrouver une demande ou une décision encore ouverte | [Feuille de route fonctionnelle](ROADMAP.md) — repères SOC, PER, CPT, CLI, PLA, RMP, INT et ADM |
 | Retrouver les couches, classes et formats du client | [Architecture](ARCHITECTURE.md) |
 | Comprendre les protections des fichiers et les liens absence/intervention/remplacement | [Fiabilisation](FIABILISATION.md) |
@@ -31,7 +32,7 @@ Les documents techniques du client comportent des états et résultats historiqu
 
 La page Fiabilisation précise les protections livrées à ce jalon. La feuille de route décrit aussi des demandes futures ; une ligne de cette liste ne constitue pas une preuve d’exécution. Pour une modification actuelle, recouper le document concerné avec les sources et les preuves datées.
 
-Ce sommaire a été préparé le **28 octobre 2026**, sans nouvelle validation du code, des tests ou des écrans.
+Ce sommaire a été préparé le **28 octobre 2026**, puis complété le **29 octobre 2026** par les renvois aux décisions métier. Aucune nouvelle validation du code, des tests ou des écrans.
 
 ## Garder un suivi lisible
 
