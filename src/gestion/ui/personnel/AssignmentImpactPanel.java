@@ -129,8 +129,7 @@ final class AssignmentImpactPanel extends JPanel {
 
 				if (column == 3 && Math.round((impact.after() - impact.before()) * 60) != 0)
 					setForeground(
-							impact.after() > impact.before() ? new Color(UIUtils.isDarkMode() ? 0x9ADBB1 : 0x257A45)
-									: new Color(UIUtils.isDarkMode() ? 0xECA6AB : 0xAC414A));
+							impact.after() > impact.before() ? UIUtils.getTurquoiseColor() : UIUtils.getVioletColor());
 
 				return this;
 			}

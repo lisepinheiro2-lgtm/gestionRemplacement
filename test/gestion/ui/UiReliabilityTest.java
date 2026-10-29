@@ -206,4 +206,105 @@ class UiReliabilityTest {
 		assertFalse(ActionDialogs.confirmSaving(null, f.planning, List.of(past), null, false));
 		assertTrue(ActionDialogs.confirmSaving(null, f.planning, List.of(past), null, true));
 	}
+
+	@Test
+	void tableThemesKeepAlternatingRowsAndSelectionsWithoutFlatLafErrors() throws Exception {
+		List<java.util.logging.LogRecord> messages = new ArrayList<>();
+		java.util.logging.Handler handler = new java.util.logging.Handler() {
+			@Override
+			public void publish(java.util.logging.LogRecord record) {
+				if (record.getLevel().intValue() >= java.util.logging.Level.WARNING.intValue())
+					messages.add(record);
+			}
+			@Override public void flush() { }
+			@Override public void close() { }
+		};
+		var logger = java.util.logging.Logger.getLogger("");
+		logger.addHandler(handler);
+		boolean dark = UIUtils.isDarkMode();
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (boolean mode : new boolean[] { false, true }) {
+					UIUtils.setDarkMode(mode);
+					UIUtils.installLookAndFeel();
+					JTable table = new JTable(new Object[][] { { "Alpha" }, { "Beta" } }, new Object[] { "Nom" });
+					UIUtils.applyTheme(table);
+					Color first = table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getBackground();
+					Color second = table.prepareRenderer(table.getCellRenderer(1, 0), 1, 0).getBackground();
+					assertNotEquals(first, second);
+					table.setRowSelectionInterval(0, 0);
+					assertEquals(table.getSelectionBackground(), table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getBackground());
+					UIUtils.applyTheme(table);
+				}
+			});
+			assertTrue(messages.stream().noneMatch(record -> String.valueOf(record.getLoggerName()).contains("FlatLaf")
+					|| record.getThrown() != null && record.getThrown().getClass().getName().contains("flatlaf")),
+					() -> messages.toString());
+		} finally {
+			SwingUtilities.invokeAndWait(() -> UIUtils.setDarkMode(dark));
+			logger.removeHandler(handler);
+		}
+	}
+
+	@Test
+	void weeklyPlanningGroupsOnlySimultaneousOverflowAndKeepsEveryIntervention() throws Exception {
+		List<Intervention> expected = new ArrayList<>();
+		expected.add(f.add(null, f.future, 8, 18));
+		for (int hour = 8; hour < 14; hour++)
+			expected.add(f.add(null, f.future, hour, hour + 1));
+		expected.add(f.add(null, f.future, 9, 10));
+		expected.add(f.add(null, f.future, 9, 10));
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				var panel = new gestion.ui.planning.PlanningUI(f.planning, f.personnel, f.clients, f.recurring);
+				setField(panel, "currentDate", f.future);
+				setField(panel, "selectedDay", f.future);
+				((JComboBox<?>) field(panel, "viewBox")).setSelectedItem("Semaine");
+				Set<Intervention> represented = new HashSet<>();
+				boolean grouped = false;
+				boolean morningBlock = false;
+				for (JButton button : find(panel, JButton.class)) {
+					if (button.getClientProperty("planning.intervention") instanceof Intervention intervention) {
+						represented.add(intervention);
+						int start = intervention.getStartTime().getHour() * 60 + intervention.getStartTime().getMinute();
+						int end = intervention.getEndTime().getHour() * 60 + intervention.getEndTime().getMinute();
+						assertTrue(button.getY() >= start && button.getY() + button.getHeight() <= end);
+						morningBlock |= intervention.getStartTime().getHour() == 8 && intervention.getEndTime().getHour() == 9;
+					}
+					if (button.getClientProperty("planning.group") instanceof List<?> targets) {
+						grouped = true;
+						assertTrue(button.getY() >= 9 * 60 && button.getY() + button.getHeight() <= 10 * 60);
+						for (Object target : targets)
+							represented.add((Intervention) target);
+					}
+				}
+				assertTrue(grouped);
+				assertTrue(morningBlock);
+				assertEquals(new HashSet<>(expected), represented);
+			} catch (Exception exception) {
+				throw new AssertionError(exception);
+			}
+		});
+	}
+
+	@Test
+	void homeHidesQuickNavigationAndBusinessPagesKeepItWithoutActivatingDocuments() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				var image = new ImageIcon(getClass().getResource("/icons/gestion-64.png")).getImage();
+				ApplicationHeader header = new ApplicationHeader(new JPanel(), new JButton("Accueil"), image);
+				header.configureNavigation(() -> { }, () -> { }, () -> { }, () -> { });
+				JPanel navigation = (JPanel) field(header, "navigation");
+				assertFalse(navigation.isVisible());
+				header.setPageTitle("Planning");
+				assertTrue(navigation.isVisible());
+				assertEquals(6, navigation.getComponentCount());
+				assertFalse(((JButton) navigation.getComponent(5)).isEnabled());
+				header.setPageTitle("Accueil");
+				assertFalse(navigation.isVisible());
+			} catch (Exception exception) {
+				throw new AssertionError(exception);
+			}
+		});
+	}
 }

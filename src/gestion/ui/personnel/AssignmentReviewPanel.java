@@ -186,8 +186,14 @@ final class AssignmentReviewPanel extends JPanel {
 		add(lists, BorderLayout.CENTER);
 		add(createActions(onConfirm, onCancel), BorderLayout.SOUTH);
 
-		occurrences.addItemListener(event -> recalculate());
-		series.addItemListener(event -> recalculate());
+		occurrences.addItemListener(event -> {
+			if (event.getStateChange() == java.awt.event.ItemEvent.SELECTED)
+				recalculate();
+		});
+		series.addItemListener(event -> {
+			if (event.getStateChange() == java.awt.event.ItemEvent.SELECTED)
+				recalculate();
+		});
 
 		UIUtils.applyTheme(this);
 

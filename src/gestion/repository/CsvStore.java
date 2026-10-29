@@ -249,6 +249,7 @@ public final class CsvStore {
 				if (exists)
 					atomicWrite(journal.resolve(name + ".old"), previous);
 				atomicWrite(journal.resolve(name + ".new"), entry.getValue());
+				writeHook.written(target);
 				manifest.append(name).append(';').append(exists).append(';').append(hash(previous)).append(';')
 						.append(hash(entry.getValue())).append('\n');
 			}

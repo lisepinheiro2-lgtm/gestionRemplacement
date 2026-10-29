@@ -44,7 +44,8 @@ public class JunitRunner {
         var summary = listener.getSummary();
         var writer = new java.io.PrintWriter(System.out, true);
         summary.printTo(writer); summary.printFailuresTo(writer);
-        if (summary.getTestsFailedCount() > 0 || summary.getTestsFoundCount() == 0) System.exit(1);
+        if (summary.getContainersFailedCount() > 0 || summary.getTestsFailedCount() > 0
+                || summary.getTestsFoundCount() == 0 || summary.getTestsStartedCount() != summary.getTestsFoundCount()) System.exit(1);
     }
 }
 ''',encoding='utf-8')

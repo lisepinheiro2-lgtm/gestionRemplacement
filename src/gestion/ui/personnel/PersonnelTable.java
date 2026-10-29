@@ -313,18 +313,9 @@ final class PersonnelTable extends JTable {
 	}
 
 	private void paintHalo(Graphics2D graphics, Shape outline, boolean active) {
-		boolean dark = UIUtils.isDarkMode();
-		Color blue = new Color(dark ? 0x54B5FF : 0x247BC9);
-		int strength = active ? 210 : 120;
-
-		graphics.setStroke(new BasicStroke(4.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-		graphics.setColor(new Color(blue.getRed(), blue.getGreen(), blue.getBlue(), dark ? 16 : 9));
-		graphics.draw(outline);
-		graphics.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-		graphics.setColor(new Color(blue.getRed(), blue.getGreen(), blue.getBlue(), active ? 38 : 22));
-		graphics.draw(outline);
-		graphics.setStroke(new BasicStroke(active ? 1.15f : 0.8f));
-		graphics.setColor(new Color(blue.getRed(), blue.getGreen(), blue.getBlue(), strength));
+		Color blue = UIUtils.getTurquoiseColor();
+		graphics.setStroke(new BasicStroke(active ? 1.2f : 0.8f));
+		graphics.setColor(new Color(blue.getRed(), blue.getGreen(), blue.getBlue(), active ? 190 : 100));
 		graphics.draw(outline);
 	}
 }

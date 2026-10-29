@@ -124,6 +124,7 @@ class BehaviorRegressionTest {
 	void employeeCsvSupportsLegacyAndCurrentRows() throws IOException {
 		Files.writeString(directory.resolve("employees.csv"),
 				"Ana;Ancien;24.5\nZoé;Récent;35.0;Opérationnel;2.0;33.0\n");
+		assertTrue(gestion.repository.CsvIdentityMigration.migrate(directory).migrated());
 		PersonnelService loaded = new PersonnelService(new EmployeeCsvRepository(directory));
 
 		assertEquals(2, loaded.getEmployees().size());
@@ -168,6 +169,7 @@ class BehaviorRegressionTest {
 	@Test
 	void clientCsvRetainsLegacyRowsAndOptionalDates() throws IOException {
 		Files.writeString(directory.resolve("clients.csv"), "Ancien;Client\n");
+		assertTrue(gestion.repository.CsvIdentityMigration.migrate(directory).migrated());
 		ClientService loaded = new ClientService(new ClientCsvRepository(directory));
 
 		assertEquals("N/A", loaded.getClients().getFirst().getAddress());
@@ -334,24 +336,22 @@ class BehaviorRegressionTest {
 	@Test
 	void recurringOccurrencesAndAssignmentSurviveReload() {
 		Employee employee = employee("A", "Nom", 35);
+		LocalDate start = LocalDate.now().plusYears(1).withDayOfMonth(1)
+				.with(java.time.temporal.TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));
 		RecurringIntervention recurring = new RecurringIntervention(client(), null, DayOfWeek.MONDAY,
-				LocalTime.of(8, 0), LocalTime.of(10, 0), LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31));
+				LocalTime.of(8, 0), LocalTime.of(10, 0), start, start.plusWeeks(3));
 		RecurringInterventionService service = new RecurringInterventionService(clients, personnel,
 				new RecurringInterventionCsvRepository(directory));
 
-		assertTrue(planning.generateRecurringInterventions(recurring));
+		assertTrue(service.createWithPlanning(planning, recurring));
+		service.assignFutureSeries(planning, recurring.getId(), employee);
 
-		service.addRecurringIntervention(recurring);
-		planning.assignEmployee(planning.getInterventionsByRecurringId(recurring.getId()), employee);
-		service.assignEmployeeByRecurringId(recurring.getId(), employee);
-
-		assertEquals(8, hours.getMonthlyHours(employee, LocalDate.of(2026, 10, 1)));
+		assertEquals(8, hours.getMonthlyHours(employee, start));
 		assertSame(employee,
 				new RecurringInterventionService(clients, personnel, new RecurringInterventionCsvRepository(directory))
 						.getRecurringInterventions().getFirst().getEmployee());
 
-		planning.removeInterventionsByRecurringId(recurring.getId());
-		service.removeRecurringInterventionById(recurring.getId());
+		service.removeFutureSeries(planning, recurring.getId());
 
 		assertTrue(planning.isEmpty());
 		assertTrue(service.isEmpty());

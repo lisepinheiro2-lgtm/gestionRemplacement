@@ -15,7 +15,7 @@ import javax.swing.Icon;
 
 public final class NavigationIcon implements Icon {
 	public enum Kind {
-		PEOPLE, CLIENTS, CALENDAR, REPLACEMENTS, INTERVENTIONS, ARCHIVE, SETTINGS, HOME, ARROW, USER
+		PEOPLE, CLIENTS, CALENDAR, REPLACEMENTS, INTERVENTIONS, ARCHIVE, SETTINGS, HOME, ARROW, USER, DOCUMENTS, ADD, DELETE, CLOCK, CHEVRON_LEFT, CHEVRON_RIGHT, CHECK, RECURRING
 	}
 
 	private final Kind kind;
@@ -47,6 +47,35 @@ public final class NavigationIcon implements Icon {
 
 		switch (kind) {
 
+		case CHEVRON_LEFT -> path(g, 15, 5, 8, 12, 15, 19);
+		case CHEVRON_RIGHT -> path(g, 9, 5, 16, 12, 9, 19);
+		case CHECK -> path(g, 5, 12, 10, 17, 19, 6);
+		case RECURRING -> {
+			g.draw(new Arc2D.Double(4, 4, 16, 16, 30, 270, Arc2D.OPEN));
+			path(g, 15, 3, 20, 4, 19, 9);
+		}
+		case ADD -> {
+			g.draw(new Ellipse2D.Double(3, 3, 18, 18));
+			line(g, 12, 7, 12, 17);
+			line(g, 7, 12, 17, 12);
+		}
+		case DELETE -> {
+			line(g, 4, 6, 20, 6);
+			path(g, 6, 6, 7, 21, 17, 21, 18, 6);
+			path(g, 9, 6, 9, 3, 15, 3, 15, 6);
+			line(g, 10, 10, 10, 17);
+			line(g, 14, 10, 14, 17);
+		}
+		case DOCUMENTS -> {
+			path(g, 5, 2, 14, 2, 20, 8, 20, 22, 5, 22, 5, 2);
+			path(g, 14, 2, 14, 8, 20, 8);
+			line(g, 8, 12, 16, 12);
+			line(g, 8, 16, 16, 16);
+		}
+		case CLOCK -> {
+			g.draw(new Ellipse2D.Double(3, 3, 18, 18));
+			path(g, 12, 6, 12, 12, 16, 15);
+		}
 		case PEOPLE -> {
 			g.draw(new Ellipse2D.Double(6, 3.5, 6, 6));
 			g.draw(new Arc2D.Double(2.5, 12, 13, 13, 0, 180, Arc2D.OPEN));

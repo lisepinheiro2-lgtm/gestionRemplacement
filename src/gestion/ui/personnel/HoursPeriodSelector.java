@@ -29,13 +29,10 @@ public final class HoursPeriodSelector extends JPanel implements AppThemeAware {
 		super(new BorderLayout(0, 4));
 		mode = new JComboBox<>(new String[] { "Semaine", "Mois" });
 		mode.putClientProperty("JComponent.roundRect", true);
-		mode.putClientProperty("FlatLaf.style", "buttonBackground:#1B2330;buttonFocusedBackground:#2D394A;"
-				+ "focusedBackground:#1B2330;buttonArrowColor:#EEF3FB;buttonHoverArrowColor:#FFFFFF;"
-				+ "buttonPressedArrowColor:#EEF3FB;[dark]borderColor:#3D4C61;[light]borderColor:#1B2330");
 		DefaultListCellRenderer renderer = new DefaultListCellRenderer();
 
-		JButton previous = createNavigationButton("◀");
-		JButton next = createNavigationButton("▶");
+		JButton previous = createNavigationButton("previous");
+		JButton next = createNavigationButton("next");
 		
 		previous.setToolTipText("Période précédente");
 		next.setToolTipText("Période suivante");
@@ -71,7 +68,10 @@ public final class HoursPeriodSelector extends JPanel implements AppThemeAware {
 	}
 
 	private JButton createNavigationButton(String text) {
-		JButton button = new PersonnelPanel.PersonnelActionButton(text);
+		JButton button = new PersonnelPanel.PersonnelActionButton("");
+		button.putClientProperty("gestion.icon", text.equals("previous")
+				? gestion.ui.NavigationIcon.Kind.CHEVRON_LEFT : gestion.ui.NavigationIcon.Kind.CHEVRON_RIGHT);
+		UIUtils.styleActionButton(button, "neutral");
 		button.putClientProperty("JButton.buttonType", "roundRect");
 		button.setMargin(new Insets(1, 5, 1, 5));
 		return button;
@@ -82,8 +82,8 @@ public final class HoursPeriodSelector extends JPanel implements AppThemeAware {
 		
 		setBackground(UIUtils.getBackgroundColor());
 
-		mode.setBackground(new Color(0x1B2330));
-		mode.setForeground(new Color(0xEEF3FB));
+		mode.setBackground(UIUtils.getSurfaceColor());
+		mode.setForeground(UIUtils.getTextColor());
 		
 		UIUtils.applyTheme(navigation);
 	}

@@ -12,6 +12,7 @@ public final class PersonnelTableModel extends AbstractTableModel {
 	private static final String[] COLUMNS = { "Nom", "Prénom", "Heures prévues au contrat", "Statut",
 			"Heures attribuées", "Heures restantes" };
 	private List<EmployeeSummary> rows = List.of();
+	private List<List<Object>> displayedValues = List.of();
 	private final EditHandler editHandler;
 
 	@FunctionalInterface
@@ -24,8 +25,14 @@ public final class PersonnelTableModel extends AbstractTableModel {
 	}
 
 	public void setRows(List<EmployeeSummary> rows) {
+		List<List<Object>> values = rows.stream().map(row -> java.util.Arrays.<Object>asList(row.employee(),
+				row.employee().getFirstName(), row.employee().getLastName(), row.employee().getContractHours(),
+				row.status(), row.assignedHours(), row.remainingHours(), row.assignedAlert(), row.remainingAlert())).toList();
 		this.rows = List.copyOf(rows);
-		fireTableDataChanged();
+		if (!displayedValues.equals(values)) {
+			displayedValues = values;
+			fireTableDataChanged();
+		}
 	}
 
 	public EmployeeSummary rowAt(int row) {

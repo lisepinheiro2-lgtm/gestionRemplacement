@@ -7,6 +7,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Image;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -25,9 +27,11 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 	private final JButton home;
 	private final JButton account;
 	private final RavenDarkLightSwitch theme = new RavenDarkLightSwitch();
+	private final JPanel navigation = new JPanel(new java.awt.GridLayout(1, 6, 6, 0));
+	private final Map<String, JButton> destinations = new LinkedHashMap<>();
 
 	public ApplicationHeader(Component parent, JButton home, Image image) {
-		super(new BorderLayout(20, 0));
+		super(new BorderLayout(16, 8));
 		this.home = home;
 
 		setBorder(BorderFactory.createEmptyBorder(14, 32, 14, 24));
@@ -57,16 +61,68 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 		account.setFocusable(false);
 		account.setToolTipText("Compte utilisateur — bientôt disponible");
 		account.getAccessibleContext().setAccessibleName("Compte utilisateur");
-		controls.add(home);
+
 		controls.add(theme);
 		controls.add(account);
 		add(identity, BorderLayout.WEST);
-		add(page, BorderLayout.CENTER);
+		JPanel center = new JPanel(new BorderLayout(0, 6));
+		center.setOpaque(false);
+		navigation.setOpaque(false);
+		center.add(page, BorderLayout.CENTER);
+		add(navigation, BorderLayout.SOUTH);
+		add(center, BorderLayout.CENTER);
 		add(controls, BorderLayout.EAST);
+		addComponentListener(new java.awt.event.ComponentAdapter() {
+			@Override
+			public void componentResized(java.awt.event.ComponentEvent event) {
+				if (getWidth() >= 1160 && navigation.getParent() != center) {
+					remove(navigation);
+					center.remove(page);
+					center.add(page, BorderLayout.NORTH);
+					center.add(navigation, BorderLayout.CENTER);
+					page.setVisible("Interventions".equals(page.getText()) || "Accueil".equals(page.getText()));
+					revalidate();
+				} else if (getWidth() < 1160 && navigation.getParent() == center) {
+					center.remove(navigation);
+					center.add(page, BorderLayout.CENTER);
+					page.setVisible(true);
+					add(navigation, BorderLayout.SOUTH);
+					revalidate();
+				}
+			}
+		});
+	}
+
+	public void configureNavigation(Runnable employees, Runnable clients, Runnable planning, Runnable replacements) {
+		navigation.add(home);
+		destinations.put("Accueil", home);
+		addDestination("Salariés", employees);
+		addDestination("Clients", clients);
+		addDestination("Planning", planning);
+		addDestination("Remplacements", replacements);
+		JButton documents = addDestination("Documents", null);
+		documents.setEnabled(false);
+		documents.setToolTipText("Documents — À venir");
+		documents.getAccessibleContext().setAccessibleDescription("À venir");
+		navigation.setVisible(false);
+		applyAppTheme(UIUtils.isDarkMode());
+	}
+
+	private JButton addDestination(String title, Runnable action) {
+		JButton button = new JButton(title);
+		if (action != null)
+			button.addActionListener(event -> action.run());
+		destinations.put(title, button);
+		navigation.add(button);
+		return button;
 	}
 
 	public void setPageTitle(String title) {
 		page.setText(title);
+		navigation.setVisible(!"Accueil".equals(title));
+		page.setVisible(getWidth() < 1160 || "Interventions".equals(title) || "Accueil".equals(title));
+		revalidate();
+		applyAppTheme(UIUtils.isDarkMode());
 	}
 
 	@Override
@@ -83,7 +139,27 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 		setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, border),
 				BorderFactory.createEmptyBorder(14, 32, 14, 24)));
 		theme.setSelected(dark);
-		home.setIcon(new NavigationIcon(NavigationIcon.Kind.HOME, 16, foreground));
+		for (var entry : destinations.entrySet()) {
+			JButton button = entry.getValue();
+			boolean active = entry.getKey().equals(page.getText())
+					|| entry.getKey().equals("Salariés") && page.getText().equals("Personnel");
+			UIUtils.styleActionButton(button, active ? "primary" : "neutral");
+			button.setFont(button.getFont().deriveFont(active ? Font.BOLD : Font.PLAIN, 12f));
+			button.setMargin(new java.awt.Insets(6, 8, 6, 8));
+			NavigationIcon.Kind kind = switch (entry.getKey()) {
+			case "Accueil" -> NavigationIcon.Kind.HOME;
+			case "Salariés" -> NavigationIcon.Kind.PEOPLE;
+			case "Clients" -> NavigationIcon.Kind.CLIENTS;
+			case "Planning" -> NavigationIcon.Kind.CALENDAR;
+			case "Remplacements" -> NavigationIcon.Kind.REPLACEMENTS;
+			default -> NavigationIcon.Kind.DOCUMENTS;
+			};
+			NavigationIcon icon = new NavigationIcon(kind, 18,
+					active ? UIUtils.getTurquoiseColor() : foreground);
+			button.setIcon(icon);
+			button.setDisabledIcon(new NavigationIcon(kind, 18, muted));
+		}
+
 		NavigationIcon accountIcon = new NavigationIcon(NavigationIcon.Kind.USER, 20, muted);
 		account.setIcon(accountIcon);
 		account.setDisabledIcon(accountIcon);
@@ -91,7 +167,7 @@ public final class ApplicationHeader extends JPanel implements AppThemeAware {
 		String style = "arc:12;borderWidth:0;focusWidth:1;innerFocusWidth:0;background:" + hex(background)
 				+ ";foreground:" + hex(foreground) + ";hoverBackground:" + hex(border);
 
-		home.putClientProperty("FlatLaf.style", style);
+
 		account.putClientProperty("FlatLaf.style", style);
 	}
 

@@ -139,8 +139,8 @@ class CsvReliabilityTest {
 		List<Runnable> operations = List.of(() -> f.planning.removeIntervention(first),
 				() -> f.planning.removeIntervention(1),
 				() -> f.planning.removeClientInterventions(f.client, f.future, f.future),
-				() -> f.planning
-						.generateRecurringInterventions(f.series(null, f.future.plusWeeks(1), f.future.plusWeeks(2))),
+				() -> f.recurring
+						.createWithPlanning(f.planning, f.series(null, f.future.plusWeeks(1), f.future.plusWeeks(2))),
 				() -> f.planning.assignEmployee(second, f.b), () -> f.planning.editIntervention(0, f.client, f.c,
 						f.future, LocalTime.of(7, 0), f.future, LocalTime.of(8, 0)));
 
@@ -299,15 +299,22 @@ class CsvReliabilityTest {
 	@Test
 	void incompleteCompensationBlocksFurtherWritesAndCanBeRecoveredByNewProcess() throws Exception {
 		var before = f.files();
+		var clients = new ClientCsvRepository(directory).load();
+		var employees = new EmployeeCsvRepository(directory).load();
+		clients.getFirst().setAddress("Adresse fictive modifiée");
+		employees.getFirst().setContractHours(20);
+		boolean[] restoring = { false };
 		CsvStore.installHook = count -> {
+			restoring[0] = true;
 			throw new IOException("installation refusée");
 		};
 		CsvStore.writeHook = path -> {
-			throw new IOException("restauration refusée");
+			if (restoring[0])
+				throw new IOException("restauration refusée");
 		};
 		assertThrows(UncheckedIOException.class, () -> CsvStore.transaction(directory, () -> {
-			CsvStore.write(directory.resolve("clients.csv"), "Autre;Client;Adresse;0;;\n");
-			CsvStore.write(directory.resolve("employees.csv"), "Autre;Employé;35;Opérationnel;0;0\n");
+			new ClientCsvRepository(directory).save(clients);
+			new EmployeeCsvRepository(directory).save(employees);
 		}));
 
 		assertTrue(Files.isDirectory(directory.resolve(".gestion-transaction")));

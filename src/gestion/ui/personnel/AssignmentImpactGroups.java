@@ -125,7 +125,10 @@ final class AssignmentImpactGroups extends JPanel {
 	}
 
 	private JButton createArrow(String text, String description) {
-		JButton button = new JButton(text);
+		JButton button = new JButton();
+		button.putClientProperty("gestion.icon", text.equals("‹")
+				? gestion.ui.NavigationIcon.Kind.CHEVRON_LEFT : gestion.ui.NavigationIcon.Kind.CHEVRON_RIGHT);
+		UIUtils.styleActionButton(button, "neutral");
 		UIUtils.styleRoundedButton(button);
 		button.setFont(button.getFont().deriveFont(Font.PLAIN, 20f));
 		button.setMargin(new Insets(0, 0, 0, 0));

@@ -48,7 +48,7 @@ public class MainUI {
 	private JPanel homePanel;
 	private PersonnelPanel personnelPanel;
 	private ReplacementUI replacementPanel;
-	private JPanel clientPanel;
+	private ClientUI clientPanel;
 	private InterventionUI interventionPanel;
 	private final Preferences preferences = Preferences.userRoot().node("/gestionRemplacement");
 	private Dimension normalWindowSize;
@@ -71,7 +71,7 @@ public class MainUI {
 	private void createWindow() {
 
 		UIUtils.installLookAndFeel();
-		frame = new JFrame("Gestion");
+		frame = new JFrame("Gestion +");
 
 		ImageIcon appIcon = new ImageIcon(MainUI.class.getResource("/icons/gestion-64.png"));
 		frame.setIconImage(appIcon.getImage());
@@ -91,9 +91,11 @@ public class MainUI {
 		homeButton.setPreferredSize(new Dimension(120, 40));
 		homeButton.addActionListener(event -> homeUI());
 
-		homeButton.setVisible(false);
+		homeButton.setVisible(true);
 
 		navigationHeader = new ApplicationHeader(frame, homeButton, appIcon.getImage());
+		navigationHeader.configureNavigation(this::personnelUI, this::clientUI, this::planningUI, this::replacementUI);
+		homeButton.setVisible(true);
 		frame.add(navigationHeader, BorderLayout.NORTH);
 		frame.add(mainPanel, BorderLayout.CENTER);
 
@@ -153,15 +155,16 @@ public class MainUI {
 		if (clientPanel == null) {
 			clientPanel = new ClientUI(clients);
 			addPage(clientPanel, "CLIENTS");
+		} else {
+			clientPanel.refreshTable();
 		}
-
 		showPage("CLIENTS", "Clients");
 	}
 
 	private void homeUI() {
 		cardLayout.show(mainPanel, "HOME");
 		navigationHeader.setPageTitle("Accueil");
-		homeButton.setVisible(false);
+		homeButton.setVisible(true);
 	}
 
 	private void personnelUI() {
@@ -191,9 +194,9 @@ public class MainUI {
 		if (replacementPanel == null) {
 			replacementPanel = new ReplacementUI(replacementList, personnel, planning);
 			addPage(replacementPanel, "REPLACEMENTS");
+		} else {
+			replacementPanel.refreshTable();
 		}
-
-		replacementPanel.refreshTable();
 		showPage("REPLACEMENTS", "Remplacements");
 	}
 

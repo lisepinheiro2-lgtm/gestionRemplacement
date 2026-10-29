@@ -24,6 +24,7 @@ import gestion.service.PlanningService;
 import gestion.service.RecurringInterventionService;
 import gestion.service.WorkHoursService;
 import gestion.util.FormatUtils;
+import gestion.ui.UIUtils;
 
 public final class EmployeeAssignmentDialog {
 
@@ -69,9 +70,12 @@ public final class EmployeeAssignmentDialog {
 			employeesPanel.add(assignSeriesBox);
 		}
 
+		var weeklyHours = hours.getHoursByEmployee(intervention.getStartDate(), false);
+		var monthlyHours = hours.getHoursByEmployee(intervention.getStartDate(), true);
+		java.util.Map<Employee, JButton> choices = new java.util.LinkedHashMap<>();
 		for (Employee employee : personnel.getEmployees()) {
-			double currentHours = hours.getWeeklyHours(employee, intervention.getStartDate());
-			double currentMonthlyHours = hours.getMonthlyHours(employee, intervention.getStartDate());
+			double currentHours = weeklyHours.getOrDefault(employee.getEmployeeID(), 0.0);
+			double currentMonthlyHours = monthlyHours.getOrDefault(employee.getEmployeeID(), 0.0);
 			double estimatedMonthlyHours = (employee.getContractHours() * 52.0) / 12;
 			double remainingMonthlyHours = estimatedMonthlyHours - currentMonthlyHours;
 			double projectedHours = currentHours;
@@ -92,26 +96,24 @@ public final class EmployeeAssignmentDialog {
 			JButton employeeButton = new JButton(text);
 			employeeButton.setPreferredSize(new Dimension(550, 70));
 			employeeButton.setMaximumSize(new Dimension(550, 70));
+			UIUtils.styleActionButton(employeeButton, "neutral");
 
 			if (planning.hasOverlap(employee, intervention)) {
 				employeeButton.setEnabled(false);
 			} else if (overtimeHours > 0) {
-				employeeButton.setBackground(Color.RED);
+				UIUtils.styleActionButton(employeeButton, "danger");
 
 			} else if (projectedHours < employee.getContractHours()) {
-				employeeButton.setBackground(Color.GREEN);
+				UIUtils.styleActionButton(employeeButton, "primary");
 
 			} else if (projectedHours == employee.getContractHours()) {
-				employeeButton.setBackground(Color.YELLOW);
+				UIUtils.styleActionButton(employeeButton, "warning");
 
 			} else {
-				employeeButton.setBackground(Color.RED);
+				UIUtils.styleActionButton(employeeButton, "danger");
 			}
 
-			assignSeriesBox.addActionListener(event -> employeeButton.setEnabled(!planning.hasOverlap(employee,
-					assignSeriesBox.isSelected()
-							? planning.getFutureInterventionsByRecurringId(recurringId, LocalDateTime.now())
-							: List.of(intervention))));
+			choices.put(employee, employeeButton);
 			employeeButton.addActionListener(event -> {
 
 				try {
@@ -160,6 +162,16 @@ public final class EmployeeAssignmentDialog {
 			employeesPanel.add(employeeButton);
 		}
 
-		JOptionPane.showMessageDialog(parent, employeesPanel, "Attribuer l'intervention", JOptionPane.PLAIN_MESSAGE);
+		assignSeriesBox.addActionListener(event -> {
+			List<Intervention> targets = assignSeriesBox.isSelected()
+					? planning.getFutureInterventionsByRecurringId(recurringId, LocalDateTime.now()) : List.of(intervention);
+			choices.forEach((employee, button) -> button.setEnabled(!planning.hasOverlap(employee, targets)));
+		});
+
+		javax.swing.JScrollPane scroll = new javax.swing.JScrollPane(employeesPanel);
+		scroll.setPreferredSize(new Dimension(580, Math.min(520, Math.max(100, personnel.getEmployees().size() * 78))));
+		scroll.getVerticalScrollBar().setUnitIncrement(25);
+		UIUtils.applyTheme(scroll);
+		JOptionPane.showMessageDialog(parent, scroll, "Attribuer l'intervention", JOptionPane.PLAIN_MESSAGE);
 	}
 }

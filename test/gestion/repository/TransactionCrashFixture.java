@@ -17,9 +17,13 @@ public final class TransactionCrashFixture {
 				Runtime.getRuntime().halt(23);
 		};
 
+		var clients = new ClientCsvRepository(directory).load();
+		var employees = new EmployeeCsvRepository(directory).load();
+		clients.getFirst().setAddress("Adresse fictive après interruption");
+		employees.getFirst().setContractHours(20);
 		CsvStore.transaction(directory, () -> {
-			CsvStore.write(directory.resolve("clients.csv"), "Nouveau;Client;Adresse fictive;0;;\n");
-			CsvStore.write(directory.resolve("employees.csv"), "Nouveau;Employé;35;Opérationnel;0;0\n");
+			new ClientCsvRepository(directory).save(clients);
+			new EmployeeCsvRepository(directory).save(employees);
 		});
 	}
 }

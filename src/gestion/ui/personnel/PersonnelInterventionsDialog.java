@@ -57,6 +57,7 @@ public class PersonnelInterventionsDialog {
 	private DateRange period;
 	private int activeTab;
 	private boolean refreshing;
+	private boolean impactPending;
 
 	public PersonnelInterventionsDialog(PlanningService planning, Runnable onChange) {
 		this(planning, null, onChange);
@@ -78,8 +79,12 @@ public class PersonnelInterventionsDialog {
 		dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
 		dialog.setContentPane(createContent(assignedHours));
-		dialog.setMinimumSize(new Dimension(860, 560));
-		dialog.setPreferredSize(new Dimension(1140, 730));
+		Rectangle screen = dialog.getGraphicsConfiguration().getBounds();
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(dialog.getGraphicsConfiguration());
+		int width = Math.min(1140, Math.max(1, screen.width - insets.left - insets.right - 24));
+		int height = Math.min(730, Math.max(1, screen.height - insets.top - insets.bottom - 24));
+		dialog.setMinimumSize(new Dimension(Math.min(860, width), Math.min(560, height)));
+		dialog.setPreferredSize(new Dimension(width, height));
 		dialog.pack();
 		dialog.setLocationRelativeTo(parent);
 		Timer availability = new Timer(1000, event -> refreshAvailability());
@@ -124,13 +129,13 @@ public class PersonnelInterventionsDialog {
 			int tab = index;
 			tables[index] = new PersonnelInterventionsTable(planning, index == 2, index != 1);
 			tables[index].getSelectionModel().addListSelectionListener(event -> {
-				if (!event.getValueIsAdjusting() && !refreshing)
-					updateImpact();
+				if (!event.getValueIsAdjusting() && !refreshing && tab == activeTab)
+					requestImpact();
 			});
-			tables[index].getRowSorter().addRowSorterListener(event -> SwingUtilities.invokeLater(() -> {
-				if (!refreshing)
-					updateImpact();
-			}));
+			tables[index].getRowSorter().addRowSorterListener(event -> {
+				if (!refreshing && tab == activeTab)
+					requestImpact();
+			});
 			JScrollPane scroll = new JScrollPane(tables[index]);
 			scroll.setColumnHeaderView(tables[index].getTableHeader());
 			cards.add(scroll, Integer.toString(index));
@@ -202,6 +207,17 @@ public class PersonnelInterventionsDialog {
 
 	private Employee destination() {
 		return activeTab == 1 ? null : employee;
+	}
+
+	private void requestImpact() {
+		if (refreshing || impactPending)
+			return;
+		impactPending = true;
+		SwingUtilities.invokeLater(() -> {
+			impactPending = false;
+			if (dialog == null || dialog.isDisplayable())
+				updateImpact();
+		});
 	}
 
 	private void updateImpact() {

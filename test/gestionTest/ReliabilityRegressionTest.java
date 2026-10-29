@@ -89,8 +89,15 @@ class ReliabilityRegressionTest {
 	}
 
 	@Test
-	void exactHomonymsAndReferencedRenamesAndDeletesAreBlocked() throws IOException {
-		f.add(f.a, f.future, 8, 10);
+	void exactHomonymsAndReferencedDeletesAreBlockedAndRenamesKeepLinks() throws IOException {
+		Intervention intervention = f.add(f.a, f.future, 8, 10);
+		EmployeeAbsence absence = new EmployeeAbsence(f.a, EmployeeStatus.VACATION,
+				f.future.plusDays(1), f.future.plusDays(1));
+		f.absences.addAbsence(absence);
+		f.replacements.addReplacement(f.a, 35, null, 0, FormatUtils.formatDate(f.future), "12h00",
+				FormatUtils.formatDate(f.future), "13h00");
+		var employeeId = f.a.getEmployeeID();
+		var clientId = f.client.getClientID();
 		var before = f.files();
 
 		assertThrows(IllegalArgumentException.class,
@@ -99,17 +106,30 @@ class ReliabilityRegressionTest {
 				() -> f.clients.addClient("Client", "Fictif", "Autre", 0, null, null));
 		assertThrows(IllegalArgumentException.class,
 				() -> f.personnel.removeEmployee(f.personnel.getEmployees().indexOf(f.a)));
-		assertThrows(IllegalArgumentException.class,
-				() -> f.personnel.editEmployee(0, "Ana", "Renommée", 35, "Opérationnel", 0, 0));
 		assertThrows(IllegalArgumentException.class, () -> f.clients.removeClient(0));
-		assertThrows(IllegalArgumentException.class,
-				() -> f.clients.editClients(0, "Autre", "Fictif", "Adresse", 0, null, null));
 		assertEquals(before, f.files());
 
-		f.personnel.editEmployee(0, "Ana", "Alpha", 24, "Opérationnel", 0, 0);
-
+		f.personnel.editEmployee(f.personnel.getEmployees().indexOf(f.a), "Ana", "Renommée", 24, "Opérationnel", 0, 0);
+		f.clients.editClients(0, "Autre", "Fictif", "Adresse", 0, null, null);
+		assertEquals(employeeId, f.a.getEmployeeID());
+		assertEquals(clientId, f.client.getClientID());
+		assertSame(f.a, intervention.getEmployee());
+		assertSame(f.client, intervention.getClient());
+		assertSame(f.a, absence.getEmployee());
+		assertEquals(employeeId, f.replacements.getReplacements().getFirst().getEmployeeToReplace().getEmployeeID());
 		assertEquals(24, f.a.getContractHours());
 		f.reload();
+
+		var personnel = new gestion.service.PersonnelService(new gestion.repository.EmployeeCsvRepository(directory));
+		var clients = new gestion.service.ClientService(new gestion.repository.ClientCsvRepository(directory));
+		var loaded = new gestion.repository.InterventionCsvRepository(directory).load(personnel.getEmployees(), clients.getClients());
+		assertEquals(employeeId, loaded.getFirst().getEmployee().getEmployeeID());
+		assertEquals("Renommée", loaded.getFirst().getEmployee().getLastName());
+		assertEquals(clientId, loaded.getFirst().getClient().getClientID());
+		assertEquals(employeeId, new gestion.repository.AbsenceCsvRepository(directory)
+				.load(personnel.getEmployees()).getFirst().getEmployee().getEmployeeID());
+		assertEquals(employeeId, new gestion.repository.ReplacementCsvRepository(directory).load()
+				.getFirst().getEmployeeToReplace().getEmployeeID());
 	}
 
 	@Test
@@ -285,22 +305,40 @@ class ReliabilityRegressionTest {
 	}
 
 	@Test
-	void startupIsReadOnlyAndOldInterventionFormatsRemainReadable() throws IOException {
+	void startupMigratesLegacyInterventionsOnceAndKeepsCurrentFilesStable() throws IOException {
 		String old = "Client;Fictif;Ana;Alpha;" + f.future + ";08:00;" + f.future + ";10:00\n";
 		Files.writeString(directory.resolve("interventions.csv"), old);
 		var before = f.files();
+		assertTrue(gestion.repository.CsvIdentityMigration.check(directory).migrationRequired());
 		f.reload();
-
-		assertEquals(before, f.files());
-		assertNull(new InterventionCsvRepository(directory).load(f.personnel.getEmployees(), f.clients.getClients())
-				.getFirst().getSourceAbsenceId());
+		assertFalse(gestion.repository.CsvIdentityMigration.check(directory).migrationRequired());
+		assertEquals(before.get("employees.csv"), f.files().get("employees.csv"));
+		assertEquals(before.get("clients.csv"), f.files().get("clients.csv"));
+		var loaded = new InterventionCsvRepository(directory).load(f.personnel.getEmployees(), f.clients.getClients());
+		assertEquals(1, loaded.size());
+		assertSame(f.a, loaded.getFirst().getEmployee());
+		assertSame(f.client, loaded.getFirst().getClient());
+		assertNull(loaded.getFirst().getSourceAbsenceId());
+		var current = f.files();
+		f.reload();
+		assertEquals(current, f.files());
 	}
 
 	@Test
 	void orphanedAbsenceOrSeriesLinksRefuseStartupWithoutWriting() throws IOException {
 		Intervention i = f.add(null, f.future, 8, 10);
-		i.setSourceAbsenceId("absence-fictive-inconnue");
-		new InterventionCsvRepository(directory).save(f.planning.getInterventions());
+		String missingId = java.util.UUID.randomUUID().toString();
+		i.setSourceAbsenceId(missingId);
+		var valid = f.files();
+		assertThrows(IllegalArgumentException.class,
+				() -> new InterventionCsvRepository(directory).save(f.planning.getInterventions()));
+		assertEquals(valid, f.files());
+		i.setSourceAbsenceId(null);
+		Path path = directory.resolve("interventions.csv");
+		String[] cells = Files.readString(path).strip().split(";", -1);
+		assertEquals(13, cells.length);
+		cells[9] = missingId;
+		Files.writeString(path, String.join(";", cells) + "\n");
 		var before = f.files();
 
 		assertThrows(IOException.class, f::reload);

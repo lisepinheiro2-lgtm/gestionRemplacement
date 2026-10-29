@@ -29,6 +29,8 @@ import gestion.service.PersonnelService;
 import gestion.service.PlanningService;
 import gestion.service.RecurringInterventionService;
 import gestion.ui.UIUtils;
+import gestion.ui.BadgeRenderer;
+import gestion.ui.NavigationIcon;
 import gestion.util.FormatUtils;
 
 public class InterventionUI extends JPanel {
@@ -54,6 +56,8 @@ public class InterventionUI extends JPanel {
 	private JScrollPane interventionScrollPane;
 	private String currentSearchText = "";
 	private JLabel searchIcon;
+	private final JLabel pageSummary = new JLabel();
+	private int renderedPageSize = -1;
 
 	public InterventionUI(PlanningService planning, RecurringInterventionService recurringInterventionList,
 			ClientService clients, PersonnelService personnel) {
@@ -61,7 +65,8 @@ public class InterventionUI extends JPanel {
 		this.planning = planning;
 		this.recurringInterventionList = recurringInterventionList;
 
-		setLayout(new BorderLayout());
+		setLayout(new BorderLayout(0, 12));
+		setBorder(javax.swing.BorderFactory.createEmptyBorder(12, 18, 16, 18));
 		createNavigationPanel();
 		interventionPanel = new JPanel();
 		add(interventionPanel, BorderLayout.CENTER);
@@ -74,18 +79,27 @@ public class InterventionUI extends JPanel {
 
 	private void createNavigationPanel() {
 		JPanel navigationPanel = new JPanel(new BorderLayout());
-		JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-		JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+		JPanel actionsPanel = new JPanel(new java.awt.GridLayout(1, 4, 10, 8));
+		JPanel searchPanel = new JPanel(new BorderLayout(10, 0));
 		JPanel pagePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
 		addInterventionButton = new JButton("Ajouter une intervention");
 		addRecurringButton = new JButton("Ajouter une intervention récurrente");
 		removeInterventionButton = new JButton("Supprimer une intervention");
 		removeRecurringInterventionButton = new JButton("Supprimer une intervention récurrente");
-		searchIcon = new JLabel("🔍");
+		searchIcon = new JLabel();
 		searchButton = new JTextField(20);
-		previousButton = new JButton("<");
-		nextButton = new JButton(">");
+		searchButton.putClientProperty("JTextField.placeholderText", "Rechercher un client, un intervenant, une date ou une heure…");
+		searchButton.putClientProperty("JTextField.leadingIcon", new com.formdev.flatlaf.icons.FlatSearchIcon());
+		searchButton.getAccessibleContext().setAccessibleName("Rechercher des interventions");
+		previousButton = new JButton();
+		previousButton.putClientProperty("gestion.icon", NavigationIcon.Kind.CHEVRON_LEFT);
+		previousButton.setToolTipText("Page précédente");
+		previousButton.getAccessibleContext().setAccessibleName("Page précédente");
+		nextButton = new JButton();
+		nextButton.putClientProperty("gestion.icon", NavigationIcon.Kind.CHEVRON_RIGHT);
+		nextButton.setToolTipText("Page suivante");
+		nextButton.getAccessibleContext().setAccessibleName("Page suivante");
 
 		String[] views = { "Trier par...", "Dates", "Clients", "Intervenants" };
 		viewBox = new JComboBox<>(views);
@@ -95,18 +109,35 @@ public class InterventionUI extends JPanel {
 		actionsPanel.add(addRecurringButton);
 		actionsPanel.add(removeInterventionButton);
 		actionsPanel.add(removeRecurringInterventionButton);
-		actionsPanel.add(viewBox);
+		pagePanel.add(pageSummary);
+		pagePanel.add(viewBox);
 
-		searchPanel.add(searchIcon);
-		searchPanel.add(searchButton);
+		searchPanel.add(searchButton, BorderLayout.CENTER);
 
 		pagePanel.add(previousButton);
 		pagePanel.add(nextButton);
 
 		UIUtils.addTextChangeListener(searchButton, this::resetSearchIfEmpty);
-		navigationPanel.add(actionsPanel, BorderLayout.WEST);
+		navigationPanel.setLayout(new BorderLayout(0, 10));
+		navigationPanel.add(actionsPanel, BorderLayout.NORTH);
+		searchPanel.add(pagePanel, BorderLayout.EAST);
 		navigationPanel.add(searchPanel, BorderLayout.CENTER);
-		navigationPanel.add(pagePanel, BorderLayout.EAST);
+		actionsPanel.addComponentListener(new java.awt.event.ComponentAdapter() {
+			@Override
+			public void componentResized(java.awt.event.ComponentEvent event) {
+				java.awt.GridLayout layout = (java.awt.GridLayout) actionsPanel.getLayout();
+				int columns = actionsPanel.getWidth() < 1180 ? 2 : 4;
+				if (layout.getColumns() != columns) {
+					layout.setRows(0);
+					layout.setColumns(columns);
+					actionsPanel.revalidate();
+				}
+			}
+		});
+		UIUtils.styleActionButton(addInterventionButton, "primary");
+		UIUtils.styleActionButton(addRecurringButton, "primary");
+		UIUtils.styleActionButton(removeInterventionButton, "danger");
+		UIUtils.styleActionButton(removeRecurringInterventionButton, "danger");
 		add(navigationPanel, BorderLayout.NORTH);
 
 		previousButton.addActionListener(event -> previousPage());
@@ -131,28 +162,27 @@ public class InterventionUI extends JPanel {
 		};
 
 		interventionTable = new JTable(interventionTableModel);
+		interventionTable.getColumnModel().getColumn(4).setCellRenderer(new BadgeRenderer());
 		interventionScrollPane = new JScrollPane(interventionTable);
 
 		interventionScrollPane.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
 			@Override
 			public void componentResized(java.awt.event.ComponentEvent event) {
+				int size = getInterventionsPerPage();
+				if (size == renderedPageSize)
+					return;
+
 				Intervention selected = getSelectedIntervention();
-
-				if (selected != null) {
-					int position = buildDisplayedInterventions().indexOf(selected);
-					if (position >= 0)
-						currentPage = position / getInterventionsPerPage();
-				}
-
-				refreshIntervention();
-				int row = visibleRows.indexOf(selected);
-
-				if (row >= 0)
-					interventionTable.setRowSelectionInterval(row, row);
+				ArrayList<Intervention> displayed = buildDisplayedInterventions();
+				int position = displayed.indexOf(selected);
+				if (position >= 0)
+					currentPage = position / size;
+				refreshIntervention(displayed);
 			}
 		});
 
 		interventionPanel.setLayout(new BorderLayout());
+
 		interventionPanel.add(interventionScrollPane, BorderLayout.CENTER);
 	}
 
@@ -231,9 +261,12 @@ public class InterventionUI extends JPanel {
 
 	private void refreshIntervention(ArrayList<Intervention> displayedInterventions) {
 
-		interventionTableModel.setRowCount(0);
+		Intervention selected = getSelectedIntervention();
+		ArrayList<Object[]> rows = new ArrayList<>();
+		ArrayList<Intervention> previousRows = new ArrayList<>(visibleRows);
 		visibleRows.clear();
 		int interventionsPerPage = getInterventionsPerPage();
+		renderedPageSize = interventionsPerPage;
 		currentPage = Math.min(currentPage, Math.max(0, (displayedInterventions.size() - 1) / interventionsPerPage));
 		int startIndex = currentPage * interventionsPerPage;
 		int endIndex = startIndex + interventionsPerPage;
@@ -269,13 +302,23 @@ public class InterventionUI extends JPanel {
 				type = "Récurrent";
 			}
 
-			interventionTableModel
-					.addRow(new Object[] { clientFullName, dayOfIntervention, hours, employeeFullName, type });
+			rows.add(new Object[] { clientFullName, dayOfIntervention, hours, employeeFullName, type });
 		}
 
+		boolean changed = UIUtils.updateTableRows(interventionTableModel, rows);
+		if (!changed && !previousRows.equals(visibleRows)) {
+			interventionTableModel.fireTableDataChanged();
+			changed = true;
+		}
+		if (changed && selected != null) {
+			int index = visibleRows.indexOf(selected);
+			if (index >= 0) {
+				int row = interventionTable.convertRowIndexToView(index);
+				if (row >= 0)
+					interventionTable.setRowSelectionInterval(row, row);
+			}
+		}
 		updatePageButtons(displayedInterventions);
-		interventionPanel.revalidate();
-		interventionPanel.repaint();
 	}
 
 	private boolean matchesName(Intervention intervention, String searchText) {
@@ -421,7 +464,7 @@ public class InterventionUI extends JPanel {
 			currentPage++;
 		}
 
-		refreshIntervention();
+		refreshIntervention(displayedInterventions);
 	}
 
 	private void updatePageButtons(ArrayList<Intervention> displayedInterventions) {
@@ -431,6 +474,9 @@ public class InterventionUI extends JPanel {
 
 		previousButton.setEnabled(currentPage > 0);
 		nextButton.setEnabled(currentPage < endPage);
+		int pages = Math.max(1, endPage + 1);
+		pageSummary.setText("Page " + (currentPage + 1) + " / " + pages);
+		pageSummary.setToolTipText(displayedInterventions.size() + " intervention(s) dans le résultat");
 	}
 
 	private void view() {

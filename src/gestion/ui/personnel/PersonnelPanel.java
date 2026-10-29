@@ -48,6 +48,7 @@ public final class PersonnelPanel extends JPanel {
 	public PersonnelPanel(PersonnelController controller, PlanningService planning,
 			RecurringInterventionService recurring) {
 		super(new BorderLayout());
+		setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
 		this.controller = controller;
 		this.planning = planning;
 		this.recurring = recurring;
@@ -72,7 +73,7 @@ public final class PersonnelPanel extends JPanel {
 		for (String text : titleText) {
 			JLabel title = new JLabel(text, JLabel.CENTER);
 			title.setFont(title.getFont().deriveFont(title.getFont().getSize2D() + 2f));
-			title.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+			title.setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
 			titles.add(title);
 		}
 
@@ -232,7 +233,17 @@ public final class PersonnelPanel extends JPanel {
 	}
 
 	public void refreshTable() {
+		int row = table.getSelectedRow();
+		Employee selected = row < 0 ? null : model.rowAt(table.convertRowIndexToModel(row)).employee();
 		model.setRows(controller.getRows(selectedPeriod.getDate(), selectedPeriod.isMonthly()));
+		if (selected != null)
+			for (int index = 0; index < model.getRowCount(); index++)
+				if (model.rowAt(index).employee() == selected) {
+					int view = table.convertRowIndexToView(index);
+					if (view >= 0 && !table.isRowSelected(view))
+						table.setRowSelectionInterval(view, view);
+					break;
+				}
 	}
 
 	static final class PersonnelActionButton extends JButton implements AppThemeAware {
@@ -246,8 +257,7 @@ public final class PersonnelPanel extends JPanel {
 
 		@Override
 		public void applyAppTheme(boolean dark) {
-			setOpaque(false);
-			setForeground(new Color(0xEEF3FB));
+			UIUtils.styleActionButton(this, getText().startsWith("Supprimer") ? "danger" : "primary");
 		}
 	}
 }

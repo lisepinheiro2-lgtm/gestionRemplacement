@@ -5,4 +5,5 @@ module gestionRemplacement {
     requires com.formdev.flatlaf.extras;
     requires com.github.weisj.jsvg;
     requires java.prefs;
+    requires java.logging;
 }

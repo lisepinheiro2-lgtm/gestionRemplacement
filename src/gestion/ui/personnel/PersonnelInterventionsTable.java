@@ -39,6 +39,7 @@ final class PersonnelInterventionsTable extends JTable {
 	private final int dateColumn;
 	private final boolean preventOverlaps;
 	private final Map<Intervention, Intervention> blockers = new HashMap<>();
+	private final Map<String, String> recurrenceTooltips = new HashMap<>();
 
 	PersonnelInterventionsTable(PlanningService planning, boolean showEmployee) {
 		this(planning, showEmployee, true);
@@ -52,8 +53,8 @@ final class PersonnelInterventionsTable extends JTable {
 
 		setModel(new AbstractTableModel() {
 			private final String[] columns = showEmployee
-					? new String[] { "✓", "", "Client", "Intervenant", "Date(s)", "Horaires", "Durée" }
-					: new String[] { "✓", "", "Client", "Date(s)", "Horaires", "Durée" };
+					? new String[] { "Sélection", "", "Client", "Intervenant", "Date(s)", "Horaires", "Durée" }
+					: new String[] { "Sélection", "", "Client", "Date(s)", "Horaires", "Durée" };
 
 			@Override
 			public int getRowCount() {
@@ -88,7 +89,7 @@ final class PersonnelInterventionsTable extends JTable {
 				if (column == 0)
 					return isRowSelected(convertRowIndexToView(row));
 				if (column == 1)
-					return intervention.getRecurringId() == null ? "" : "🔁";
+					return intervention.getRecurringId() == null ? "" : "Récurrent";
 				if (column == 2)
 					return intervention.getClient().getFirstName() + " " + intervention.getClient().getLastName();
 				if (showEmployee && column == 3)
@@ -99,6 +100,30 @@ final class PersonnelInterventionsTable extends JTable {
 					return FormatUtils.formatTime(intervention.getStartTime()) + " – "
 							+ FormatUtils.formatTime(intervention.getEndTime());
 				return intervention.getDurationHours();
+			}
+		});
+
+		getColumnModel().getColumn(0).setHeaderRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+			@Override
+			public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
+					boolean focused, int row, int column) {
+				super.getTableCellRendererComponent(table, "", selected, focused, row, column);
+				setHorizontalAlignment(CENTER);
+				setBackground(table.getTableHeader().getBackground());
+				setIcon(new gestion.ui.NavigationIcon(gestion.ui.NavigationIcon.Kind.CHECK, 16, UIUtils.getTextColor()));
+				setToolTipText("Sélection des interventions");
+				return this;
+			}
+		});
+		getColumnModel().getColumn(1).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+			@Override
+			public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
+					boolean focused, int row, int column) {
+				super.getTableCellRendererComponent(table, "", selected, focused, row, column);
+				setHorizontalAlignment(CENTER);
+				setIcon(value == null || value.toString().isEmpty() ? null
+						: new gestion.ui.NavigationIcon(gestion.ui.NavigationIcon.Kind.RECURRING, 16, UIUtils.getTurquoiseColor()));
+				return this;
 			}
 		});
 
@@ -182,8 +207,9 @@ final class PersonnelInterventionsTable extends JTable {
 		component.setEnabled(blocker == null);
 		component.setForeground(blocker != null ? UIUtils.getPlaceholderColor()
 				: isRowSelected(row) ? getSelectionForeground() : getForeground());
-		component.setBackground(blocker != null ? new Color(UIUtils.isDarkMode() ? 0x292D33 : 0xEBEDF0)
-				: isRowSelected(row) ? getSelectionBackground() : getBackground());
+		component.setBackground(blocker != null ? new Color(UIUtils.isDarkMode() ? 0x26303D : 0xE8EDF3)
+				: isRowSelected(row) ? getSelectionBackground()
+				: row % 2 == 0 ? getBackground() : new Color(UIUtils.isDarkMode() ? 0x1D2735 : 0xEDF3FA));
 
 		if (component instanceof JComponent target)
 			target.setToolTipText(null);
@@ -200,21 +226,35 @@ final class PersonnelInterventionsTable extends JTable {
 			if (column == dateColumn + 2)
 				label.setText(FormatUtils.formatContractHours(intervention.getDurationHours()));
 
-			if (intervention.getRecurringId() != null && (column == 1 || column == dateColumn + 2)) {
-				LocalDate monday = intervention.getStartDate().with(DayOfWeek.MONDAY);
-				double weekly = planning.getInterventionsByRecurringId(intervention.getRecurringId()).stream()
-						.mapToDouble(i -> WorkHoursService.getInterventionHoursInPeriod(i, monday.atStartOfDay(),
-								monday.plusWeeks(1).atStartOfDay())).sum();
-				label.setToolTipText("Récurrence : " + FormatUtils.formatContractHours(weekly)
-						+ " dans la semaine du " + FormatUtils.formatDate(monday)
-						+ ". Durée affichée : cette occurrence uniquement.");
-			}
 		}
 
-		if (blocker != null && component instanceof JComponent target)
-			target.setToolTipText("Chevauche l'intervention sélectionnée : " + describe(blocker));
-
 		return component;
+	}
+
+	@Override
+	public String getToolTipText(java.awt.event.MouseEvent event) {
+		int row = rowAtPoint(event.getPoint());
+		int column = columnAtPoint(event.getPoint());
+		if (row < 0 || column < 0)
+			return null;
+		Intervention intervention = interventions.get(convertRowIndexToModel(row));
+		Intervention blocker = blockers.get(intervention);
+		if (blocker != null)
+			return "Chevauche l'intervention sélectionnée : " + describe(blocker);
+
+		int modelColumn = convertColumnIndexToModel(column);
+		if (intervention.getRecurringId() == null || modelColumn != 1 && modelColumn != dateColumn + 2)
+			return null;
+		LocalDate monday = intervention.getStartDate().with(DayOfWeek.MONDAY);
+		String key = intervention.getRecurringId() + ":" + monday;
+		return recurrenceTooltips.computeIfAbsent(key, ignored -> {
+			double weekly = planning.getInterventionsByRecurringId(intervention.getRecurringId()).stream()
+					.mapToDouble(i -> WorkHoursService.getInterventionHoursInPeriod(i, monday.atStartOfDay(),
+							monday.plusWeeks(1).atStartOfDay())).sum();
+			return "Récurrence : " + FormatUtils.formatContractHours(weekly)
+					+ " dans la semaine du " + FormatUtils.formatDate(monday)
+					+ ". Durée affichée : cette occurrence uniquement.";
+		});
 	}
 
 	private Intervention selectionBlocker(Intervention candidate, List<Intervention> selected) {
@@ -271,6 +311,7 @@ final class PersonnelInterventionsTable extends JTable {
 	}
 
 	void showInterventions(List<Intervention> updated) {
+		recurrenceTooltips.clear();
 		
 		List<Intervention> selected = selectedInterventions();
 		clearSelection();

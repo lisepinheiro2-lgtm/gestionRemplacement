@@ -33,6 +33,7 @@ final class AssignmentImpactCard extends JPanel implements AppThemeAware {
 	private final JLabel role;
 	private final JPanel rows = new JPanel();
 	private final Map<LocalDate, Impact> impacts = new LinkedHashMap<>();
+	private List<LocalDate> displayedWeeks;
 
 	AssignmentImpactCard(Employee employee, List<Impact> weeks, boolean recipient) {
 
@@ -74,6 +75,9 @@ final class AssignmentImpactCard extends JPanel implements AppThemeAware {
 	}
 
 	void showWeeks(List<LocalDate> weeks) {
+		if (weeks.equals(displayedWeeks))
+			return;
+		displayedWeeks = List.copyOf(weeks);
 		rows.removeAll();
 		weeks.stream().map(impacts::get).filter(AssignmentImpactCard::changesHours)
 				.forEach(impact -> rows.add(new WeekRow(impact)));
@@ -96,9 +100,9 @@ final class AssignmentImpactCard extends JPanel implements AppThemeAware {
 
 		try {
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g.setColor(new Color(UIUtils.isDarkMode() ? 0x191C21 : 0xFFFFFF));
+			g.setColor(UIUtils.getSurfaceColor());
 			g.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
-			g.setColor(new Color(UIUtils.isDarkMode() ? 0x353A43 : 0xDEE3EB));
+			g.setColor(UIUtils.getBorderColor());
 			g.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
 		} finally {
 			g.dispose();
@@ -176,15 +180,14 @@ final class AssignmentImpactCard extends JPanel implements AppThemeAware {
 			UIUtils.applyTheme(gaugeLine);
 
 			Color state = UIUtils.getHoursColor(impact.alert());
-			Color readable = dark ? state : state.darker().darker();
+			Color readable = state;
 			hours.setText("<html><font color='" + hex(UIUtils.getPlaceholderColor()) + "'>"
 					+ FormatUtils.formatContractHours(impact.before()) + " → </font><b><font color='" + hex(readable)
 					+ "'>" + FormatUtils.formatContractHours(impact.after()) + " / "
 					+ FormatUtils.formatContractHours(impact.contract()) + "</font></b></html>");
 
 			if (Math.round((impact.after() - impact.before()) * 60) != 0)
-				variation.setForeground(impact.after() > impact.before() ? new Color(dark ? 0x9ADBB1 : 0x257A45)
-						: new Color(dark ? 0xECA6AB : 0xAC414A));
+				variation.setForeground(impact.after() > impact.before() ? UIUtils.getTurquoiseColor() : UIUtils.getVioletColor());
 		}
 	}
 
